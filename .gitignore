@@ -1,0 +1,13 @@
+# Environment Variables
+.env
+
+# Node.js / React (venue-website)
+node_modules/
+
+# Python / LangGraph Agent
+__pycache__/    
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+venv/
