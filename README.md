@@ -102,7 +102,7 @@ webmcp-venue-agent/
 │       ├── agent/        # LangGraph workflow
 │       └── browser/      # Playwright WebMCP client
 └── scripts/              # Dev automation scripts
-
+```
 
 ---
 
