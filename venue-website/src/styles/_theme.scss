@@ -1,0 +1,75 @@
+$font-family:
+  'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+$theme-color: #0f766e;
+$theme-color-dark: #115e59;
+$theme-color-contrast: #ffffff;
+
+$color-page-bg: #f7f8fb;
+$color-surface: #ffffff;
+$color-surface-soft: #fbfdff;
+$color-surface-muted: #f8fafc;
+$color-panel-tint: #f9fbff;
+$color-quote-tint: #fbfdfb;
+$color-card-bg: #fcfcfd;
+
+$color-ink: #1f2937;
+$color-heading: #111827;
+$color-ui-text: #243240;
+$color-muted: #5f6b7a;
+$color-muted-strong: #4b5563;
+$color-border-text: #4e5b6b;
+$color-error: #991b1b;
+$color-success: #14532d;
+$color-success-border: #15803d;
+$color-success-bg: #e8f7ee;
+
+$radius-panel: 8px;
+$radius-control: 6px;
+$radius-pill: 999px;
+
+$shadow-panel: 0 18px 48px rgba($color-ink, 0.08);
+$shadow-panel-active: 0 18px 48px rgba($theme-color, 0.14);
+$shadow-launcher: 0 18px 44px rgba($color-ink, 0.18);
+$shadow-launcher-hover: 0 20px 48px rgba($color-ink, 0.22);
+$shadow-chat: 0 24px 70px rgba($color-ink, 0.22);
+
+$breakpoint-mobile: 780px;
+
+@mixin focus-ring($color: $theme-color, $offset: 2px) {
+  outline: 3px solid rgba($color, 0.3);
+  outline-offset: $offset;
+}
+
+@mixin panel-surface($padding: 24px, $background: $color-surface) {
+  padding: $padding;
+  border: 1px solid rgba($color-ink, 0.1);
+  border-radius: $radius-panel;
+  background: $background;
+  box-shadow: $shadow-panel;
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin themed-action($height: 44px) {
+  min-height: $height;
+  border: 0;
+  border-radius: $radius-control;
+  background: $theme-color;
+  color: $theme-color-contrast;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+
+  &:hover:not(:disabled) {
+    background: $theme-color-dark;
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+}

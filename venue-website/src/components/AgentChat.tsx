@@ -1,0 +1,512 @@
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import {
+  callAgentTool,
+  formatToolResultForModel,
+  getOpenAIToolDefinitions,
+} from '../lib/toolRegistry'
+import './style/AgentChat.scss'
+
+type ChatState = 'closed' | 'minimized' | 'open'
+type ChatMessageRole = 'assistant' | 'user'
+type ChatMessageVariant = 'error'
+
+/**
+ * UI message rendered in the chat transcript.
+ */
+interface ChatMessage {
+  /** Client-generated id used as the React list key. */
+  id: string
+
+  /** Transcript side that controls visual alignment and message styling. */
+  role: ChatMessageRole
+
+  /** Text displayed in the chat bubble. */
+  content: string
+
+  /** Optional display variant for non-standard assistant messages. */
+  variant?: ChatMessageVariant
+}
+
+/**
+ * Function call request returned by an OpenAI-compatible chat-completion response.
+ */
+interface ToolCall {
+  /** Provider-generated id that must be echoed in the tool response message. */
+  id: string
+
+  /** Requested tool name and raw JSON arguments. */
+  function: {
+    name: string
+    arguments?: string
+  }
+}
+
+/**
+ * Assistant message shape returned by the model.
+ */
+interface AssistantCompletionMessage {
+  role: 'assistant'
+
+  /** Natural language response when the model is done calling tools. */
+  content?: string | null
+
+  /** One or more tool calls requested by the model. */
+  tool_calls?: ToolCall[]
+}
+
+/**
+ * Message shape sent to the OpenAI-compatible chat-completion endpoint.
+ */
+interface ChatRequestMessage {
+  role: 'system' | 'assistant' | 'user' | 'tool'
+
+  /** Text content for system, user, assistant, or tool messages. */
+  content?: string | null
+
+  /** Tool name included on tool response messages. */
+  name?: string
+
+  /** Tool call id included on tool response messages. */
+  tool_call_id?: string
+
+  /** Tool calls included when replaying assistant tool-call messages. */
+  tool_calls?: ToolCall[]
+}
+
+/**
+ * Minimal response contract used from the OpenAI-compatible provider.
+ */
+interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: AssistantCompletionMessage
+  }>
+  error?: {
+    message?: string
+  }
+}
+
+/**
+ * System guardrails that keep the assistant scoped to venue planning tasks.
+ */
+const SYSTEM_MESSAGE: ChatRequestMessage = {
+  role: 'system',
+  content: `You are the official venue planning assistant for spaces360 and Venue XYZ. Your ONLY job is to help users find event spaces, check availability, and request quotes.
+
+STRICT RULES:
+1. Do NOT answer questions that are unrelated to event planning, venue booking, or spaces360.
+2. If a user asks a general knowledge question (e.g., math, coding, cooking, politics, history), you must politely decline and steer the conversation back to event venues.
+3. Example refusal: "I'm a dedicated event planning assistant, so I can't help with that. But I'd love to help you find the perfect room for your next event!"
+4. Use the available tools to fetch live data whenever asked about specific rooms or dates.
+5. Before preparing a quote request, check availability for that room and date. Do not prepare a quote request for a room/date that is booked or unavailable.
+6. Keep answers concise, professional, and practical.`,
+}
+
+/**
+ * Creates the first assistant message shown whenever a conversation starts or resets.
+ *
+ * @returns A new transcript with stable ids for React rendering.
+ */
+function createInitialMessages(): ChatMessage[] {
+  return [
+    createMessage(
+      'assistant',
+      'Tell me what kind of event you are planning, and I can check rooms or dates for you.',
+    ),
+  ]
+}
+
+/**
+ * Builds a transcript message for local UI state.
+ *
+ * @param role - Message owner used for alignment and styling.
+ * @param content - Text displayed in the transcript.
+ * @param variant - Optional styling variant, currently used for errors.
+ * @returns ChatMessage ready to append to state.
+ */
+function createMessage(
+  role: ChatMessageRole,
+  content: string,
+  variant?: ChatMessageVariant,
+): ChatMessage {
+  return {
+    id: crypto.randomUUID(),
+    role,
+    content,
+    variant,
+  }
+}
+
+/**
+ * Parses raw JSON arguments returned by the model for a tool call.
+ *
+ * @param rawArguments - JSON string from toolCall.function.arguments.
+ * @returns Parsed object, or an empty object when arguments are missing or invalid.
+ */
+function parseToolArguments(rawArguments?: string): Record<string, unknown> {
+  if (!rawArguments) {
+    return {}
+  }
+
+  try {
+    return JSON.parse(rawArguments)
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Calls the OpenAI-compatible chat completion endpoint with registered tools.
+ *
+ * @param messages - Conversation messages, including system and tool messages.
+ * @param tools - Tool definitions generated from the local registry.
+ * @param signal - AbortSignal used to cancel stale requests.
+ * @returns The assistant message returned by the provider.
+ * @throws Error when the API key is missing or the provider returns an error.
+ */
+async function requestChatCompletion(
+  messages: ChatRequestMessage[],
+  tools: ReturnType<typeof getOpenAIToolDefinitions>,
+  signal: AbortSignal,
+): Promise<AssistantCompletionMessage | undefined> {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY
+
+  if (!apiKey) {
+    throw new Error('Missing VITE_GROQ_API_KEY in your local environment.')
+  }
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    signal,
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages,
+      ...(tools.length ? { tools, tool_choice: 'auto' } : {}),
+    }),
+  })
+
+  const data = (await response.json()) as ChatCompletionResponse
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.message ?? 'The assistant request failed.')
+  }
+
+  return data.choices?.[0]?.message
+}
+
+/**
+ * Normalizes unknown caught values into a user-visible error message.
+ *
+ * @param error - Unknown value caught from async chat/tool work.
+ * @returns Safe fallback text for the assistant transcript.
+ */
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'The assistant request failed.'
+}
+
+/**
+ * Floating assistant widget for room details, availability checks, and quote preparation.
+ */
+export default function AgentChat() {
+  const [chatState, setChatState] = useState<ChatState>('closed')
+  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState(createInitialMessages)
+  const [isLoading, setIsLoading] = useState(false)
+  const [toolStatus, setToolStatus] = useState('')
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const activeRunIdRef = useRef(0)
+
+  useEffect(() => {
+    if (chatState === 'open') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+  }, [chatState, messages, isLoading, toolStatus])
+
+  const resetConversation = () => {
+    setInput('')
+    setMessages(createInitialMessages())
+    setIsLoading(false)
+    setToolStatus('')
+  }
+
+  const handleOpen = () => {
+    setChatState('open')
+  }
+
+  const handleMinimize = () => {
+    setChatState('minimized')
+  }
+
+  const handleClose = () => {
+    activeRunIdRef.current += 1
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    resetConversation()
+    setChatState('closed')
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const trimmedInput = input.trim()
+
+    if (!trimmedInput || isLoading) {
+      return
+    }
+
+    const userMessage = createMessage('user', trimmedInput)
+    const nextMessages = [...messages, userMessage]
+    const runId = activeRunIdRef.current + 1
+    const abortController = new AbortController()
+    const isCurrentRun = () => activeRunIdRef.current === runId
+
+    activeRunIdRef.current = runId
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = abortController
+    setMessages(nextMessages)
+    setInput('')
+    setIsLoading(true)
+    setToolStatus('')
+
+    try {
+      const tools = getOpenAIToolDefinitions()
+      const chatMessages: ChatRequestMessage[] = [
+        SYSTEM_MESSAGE,
+        ...nextMessages.map(({ role, content }) => ({ role, content })),
+      ]
+
+      // Allow the model to call tools and then continue reasoning with the results.
+      // The step limit prevents an accidental infinite tool-call loop.
+      for (let step = 0; step < 4; step += 1) {
+        const assistantMessage = await requestChatCompletion(
+          chatMessages,
+          tools,
+          abortController.signal,
+        )
+
+        if (!isCurrentRun()) {
+          return
+        }
+
+        if (!assistantMessage) {
+          throw new Error('The assistant returned an empty response.')
+        }
+
+        if (!assistantMessage.tool_calls?.length) {
+          setMessages((currentMessages) => [
+            ...currentMessages,
+            createMessage('assistant', assistantMessage.content ?? 'Done.'),
+          ])
+          return
+        }
+
+        chatMessages.push(assistantMessage)
+
+        for (const toolCall of assistantMessage.tool_calls) {
+          const toolName = toolCall.function.name
+          const toolArgs = parseToolArguments(toolCall.function.arguments)
+
+          setToolStatus(`Checking ${toolName.replaceAll('_', ' ')}...`)
+
+          const toolResult = await callAgentTool(toolName, toolArgs)
+
+          if (!isCurrentRun()) {
+            return
+          }
+
+          chatMessages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            name: toolName,
+            content: formatToolResultForModel(toolResult),
+          })
+        }
+      }
+
+      throw new Error('The assistant needed too many tool steps. Please try again.')
+    } catch (error) {
+      if (!isCurrentRun()) {
+        return
+      }
+
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        createMessage('assistant', getErrorMessage(error), 'error'),
+      ])
+    } finally {
+      if (isCurrentRun()) {
+        setIsLoading(false)
+        setToolStatus('')
+      }
+
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null
+      }
+    }
+  }
+
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      event.currentTarget.form?.requestSubmit()
+    }
+  }
+
+  const statusLabel = isLoading ? toolStatus || 'Working' : 'Ready'
+
+  if (chatState === 'closed') {
+    return (
+      <div className="agent-chat-shell">
+        <button
+          className="agent-chat-launcher"
+          type="button"
+          onClick={handleOpen}
+          aria-controls="agent-chat-panel"
+          aria-expanded="false"
+        >
+          <span className="agent-chat-launcher__mark" aria-hidden="true">
+            AI
+          </span>
+          <span className="agent-chat-launcher__copy">
+            <span className="agent-chat-launcher__title">spaces360 Assistant</span>
+            <span className="agent-chat-launcher__status">Open chat</span>
+          </span>
+        </button>
+      </div>
+    )
+  }
+
+  if (chatState === 'minimized') {
+    return (
+      <div className="agent-chat-shell">
+        <section
+          className="agent-chat agent-chat--minimized"
+          aria-label="spaces360 Assistant minimized"
+        >
+          <button
+            className="agent-chat__minimized-toggle"
+            type="button"
+            onClick={handleOpen}
+            aria-controls="agent-chat-panel"
+            aria-expanded="false"
+          >
+            <span className="agent-chat__minimized-mark" aria-hidden="true">
+              AI
+            </span>
+            <span className="agent-chat__minimized-copy">
+              <span className="agent-chat__minimized-title">spaces360 Assistant</span>
+              <span className="agent-chat__minimized-status">{statusLabel}</span>
+            </span>
+          </button>
+
+          <button
+            className="agent-chat__icon-button"
+            type="button"
+            onClick={handleOpen}
+            aria-label="Open chat"
+            title="Open chat"
+          >
+            <span aria-hidden="true">+</span>
+          </button>
+          <button
+            className="agent-chat__icon-button"
+            type="button"
+            onClick={handleClose}
+            aria-label="Close chat and reset conversation"
+            title="Close chat"
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </section>
+      </div>
+    )
+  }
+
+  return (
+    <div className="agent-chat-shell">
+      <section
+        id="agent-chat-panel"
+        className="agent-chat agent-chat--open"
+        aria-labelledby="agent-chat-title"
+      >
+        <div className="agent-chat__header">
+          <div className="agent-chat__identity">
+            <span className="agent-chat__mark" aria-hidden="true">
+              AI
+            </span>
+            <div>
+              <p className="agent-chat__eyebrow">AI planner</p>
+              <h2 id="agent-chat-title" className="agent-chat__title">
+                spaces360 Assistant
+              </h2>
+            </div>
+          </div>
+
+          <div className="agent-chat__window-actions">
+            <span className="agent-chat__status">{statusLabel}</span>
+            <button
+              className="agent-chat__icon-button"
+              type="button"
+              onClick={handleMinimize}
+              aria-label="Minimize chat"
+              title="Minimize chat"
+            >
+              <span aria-hidden="true">&minus;</span>
+            </button>
+            <button
+              className="agent-chat__icon-button"
+              type="button"
+              onClick={handleClose}
+              aria-label="Close chat and reset conversation"
+              title="Close chat"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="agent-chat__messages" aria-live="polite">
+          {messages.map((message) => (
+            <article
+              className={`agent-chat__message agent-chat__message--${message.role} ${
+                message.variant ? `agent-chat__message--${message.variant}` : ''
+              }`}
+              key={message.id}
+            >
+              <p>{message.content}</p>
+            </article>
+          ))}
+
+          {(isLoading || toolStatus) && (
+            <div className="agent-chat__thinking">
+              <span></span>
+              <span></span>
+              <span></span>
+              <p>{toolStatus || 'Thinking...'}</p>
+            </div>
+          )}
+
+          <div ref={messagesEndRef}></div>
+        </div>
+
+        <form className="agent-chat__composer" onSubmit={handleSubmit}>
+          <textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={handleComposerKeyDown}
+            placeholder="Ask about rooms, dates, or quotes"
+            rows={2}
+            disabled={isLoading}
+          ></textarea>
+          <button type="submit" disabled={isLoading || !input.trim()}>
+            Send
+          </button>
+        </form>
+      </section>
+    </div>
+  )
+}
