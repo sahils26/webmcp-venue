@@ -24,8 +24,40 @@ export function useAgentTool<TParams extends AgentToolParams = AgentToolParams>(
   }, [actionCallback])
 
   useEffect(() => {
-    return registerAgentTool({ name, description, schema }, async (params) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const modelContext = (navigator as any)?.modelContext
+    let unregisterLocalTool: (() => void) | undefined
+    let unregisterWebMCPTool: (() => void) | undefined
+
+    const executeTool = async (params: AgentToolParams) => {
       return await actionCallbackRef.current(params as TParams)
-    })
+    }
+
+    if (typeof window !== 'undefined' && modelContext?.registerTool) {
+      try {
+        const registration = modelContext.registerTool({
+          name,
+          description,
+          inputSchema: schema,
+          execute: executeTool,
+        })
+
+        unregisterWebMCPTool = () => {
+          if (registration && typeof registration.unregister === 'function') {
+            registration.unregister()
+          }
+        }
+      } catch (error) {
+        console.warn(`WebMCP tool registration failed for ${name}:`, error)
+      }
+    }
+
+    // eslint-disable-next-line prefer-const
+    unregisterLocalTool = registerAgentTool({ name, description, schema }, executeTool)
+
+    return () => {
+      unregisterLocalTool?.()
+      unregisterWebMCPTool?.()
+    }
   }, [name, description, schema])
 }

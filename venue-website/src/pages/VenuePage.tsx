@@ -1,4 +1,5 @@
-import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
+import { type ChangeEvent, type FormEvent } from 'react'
+import { useAppDispatch, useAppSelector } from '../app/hooks'
 import AgentChat from '../components/AgentChat'
 import {
   checkAvailabilitySchema,
@@ -6,21 +7,24 @@ import {
   roomDetailsSchema,
 } from '../data/agentToolSchemas'
 import { roomNames, venueRooms } from '../data/venueData'
+import { agentQueryRecorded, selectLastAgentQuery } from '../features/agent/agentActivitySlice'
+import {
+  isQuoteDraftField,
+  quoteDraftFieldChanged,
+  quoteDraftPrepared,
+  quoteStatusSet,
+  selectQuoteDraft,
+  selectQuoteStatus,
+} from '../features/quote/quoteSlice'
+import { useGetNearbyVenuesQuery } from '../features/venues/venueApi'
 import { useAgentTool } from '../hooks/useAgentTool'
-import { fetchRealVenues } from '../services/osmApi'
 import {
   getRoomAvailability,
   getRoomByName,
   resolveRoomName,
 } from '../services/venueAvailability'
 import type { AgentToolParams } from '../types/agentTool'
-import type { OSMVenue, QuoteDraft } from '../types/venue'
 import './style/VenuePage.scss'
-
-/**
- * Loading lifecycle for the optional OpenStreetMap venue panel.
- */
-type LiveVenueStatus = 'loading' | 'ready' | 'error'
 
 /**
  * Safely extracts a string value from model-supplied tool parameters.
@@ -39,51 +43,27 @@ function getStringParam(params: AgentToolParams, key: string): string {
  *
  * Responsibilities:
  * - Render static local room inventory.
- * - Fetch and display optional live venue candidates.
- * - Own quote form state.
- * - Register assistant tools that need access to page state.
+ * - Display optional live venue candidates from RTK Query.
+ * - Read and update Redux-managed quote and agent state.
+ * - Register assistant tools that need access to app state.
  */
 export default function VenuePage() {
-  const [lastAgentQuery, setLastAgentQuery] = useState<string | null>(null)
-  const [quoteStatus, setQuoteStatus] = useState<string | null>(null)
-  const [liveVenueStatus, setLiveVenueStatus] = useState<LiveVenueStatus>('loading')
-  const [nearbyVenues, setNearbyVenues] = useState<OSMVenue[]>([])
-  const [quoteDraft, setQuoteDraft] = useState<QuoteDraft>({
-    roomName: '',
-    date: '',
-    email: '',
-  })
-
-  useEffect(() => {
-    const abortController = new AbortController()
-
-    // The live venue list is informational only; quote and availability tools
-    // continue to work from local room data if this network request fails.
-    fetchRealVenues(abortController.signal)
-      .then((venues) => {
-        setNearbyVenues(venues)
-        setLiveVenueStatus('ready')
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return
-        }
-
-        setLiveVenueStatus('error')
-      })
-
-    return () => {
-      abortController.abort()
-    }
-  }, [])
+  const dispatch = useAppDispatch()
+  const lastAgentQuery = useAppSelector(selectLastAgentQuery)
+  const quoteDraft = useAppSelector(selectQuoteDraft)
+  const quoteStatus = useAppSelector(selectQuoteStatus)
+  const {
+    data: nearbyVenues = [],
+    isError: hasLiveVenueError,
+    isLoading: isLoadingLiveVenues,
+  } = useGetNearbyVenuesQuery()
 
   const handleQuoteFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
 
-    setQuoteDraft((currentDraft) => ({
-      ...currentDraft,
-      [name]: value,
-    }))
+    if (isQuoteDraftField(name)) {
+      dispatch(quoteDraftFieldChanged({ name, value }))
+    }
   }
 
   const handleQuoteSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -92,12 +72,14 @@ export default function VenuePage() {
     const availability = getRoomAvailability(quoteDraft.roomName, quoteDraft.date)
 
     if (!availability.success || !availability.available) {
-      setQuoteStatus(`${availability.message} Quote request was not sent.`)
+      dispatch(quoteStatusSet(`${availability.message} Quote request was not sent.`))
       return
     }
 
-    setQuoteStatus(
-      `Quote requested for ${availability.roomName} on ${availability.date} by ${quoteDraft.email}.`,
+    dispatch(
+      quoteStatusSet(
+        `Quote requested for ${availability.roomName} on ${availability.date} by ${quoteDraft.email}.`,
+      ),
     )
   }
 
@@ -114,7 +96,7 @@ export default function VenuePage() {
       const roomName = resolveRoomName(getStringParam(params, 'roomName'))
       const roomInfo = getRoomByName(roomName)
 
-      setLastAgentQuery(roomName)
+      dispatch(agentQueryRecorded(roomName))
 
       if (roomInfo) {
         return { success: true, data: roomInfo }
@@ -141,14 +123,16 @@ export default function VenuePage() {
       const email = getStringParam(params, 'email')
       const availability = getRoomAvailability(roomName, date)
 
-      setLastAgentQuery(
-        `Preparing quote request for ${availability.roomName || roomName} on ${
-          availability.date || date
-        }`,
+      dispatch(
+        agentQueryRecorded(
+          `Preparing quote request for ${availability.roomName || roomName} on ${
+            availability.date || date
+          }`,
+        ),
       )
 
       if (!availability.success || !availability.available) {
-        setQuoteStatus(`${availability.message} Quote request form was not prepared.`)
+        dispatch(quoteStatusSet(`${availability.message} Quote request form was not prepared.`))
 
         return {
           success: false,
@@ -157,8 +141,14 @@ export default function VenuePage() {
         }
       }
 
-      setQuoteDraft({ roomName: availability.roomName, date: availability.date, email })
-      setQuoteStatus(null)
+      dispatch(
+        quoteDraftPrepared({
+          roomName: availability.roomName,
+          date: availability.date,
+          email,
+        }),
+      )
+      dispatch(quoteStatusSet(null))
 
       return {
         success: true,
@@ -180,10 +170,12 @@ export default function VenuePage() {
       const date = getStringParam(params, 'date')
       const availability = getRoomAvailability(roomName, date)
 
-      setLastAgentQuery(
-        `Checking availability for ${availability.roomName || roomName} on ${
-          availability.date || date
-        }`,
+      dispatch(
+        agentQueryRecorded(
+          `Checking availability for ${availability.roomName || roomName} on ${
+            availability.date || date
+          }`,
+        ),
       )
 
       return availability
@@ -246,17 +238,17 @@ export default function VenuePage() {
               </p>
             </div>
 
-            {liveVenueStatus === 'loading' && (
+            {isLoadingLiveVenues && (
               <p className="live-venue-status">Loading live venue source...</p>
             )}
 
-            {liveVenueStatus === 'error' && (
+            {hasLiveVenueError && (
               <p className="live-venue-status live-venue-status--error">
                 Live venue source is unavailable right now.
               </p>
             )}
 
-            {liveVenueStatus === 'ready' && nearbyVenues.length === 0 && (
+            {!isLoadingLiveVenues && !hasLiveVenueError && nearbyVenues.length === 0 && (
               <p className="live-venue-status">No nearby venues returned from the live source.</p>
             )}
 

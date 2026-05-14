@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.scss'
+import { AppProvider } from './app/AppProvider'
 import VenuePage from './pages/VenuePage'
 
 /**
@@ -15,6 +16,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <VenuePage />
+    <AppProvider>
+      <VenuePage />
+    </AppProvider>
   </StrictMode>,
 )

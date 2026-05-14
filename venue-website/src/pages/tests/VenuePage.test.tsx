@@ -1,16 +1,27 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { httpClient } from '../../services/api/httpClient'
+import { renderWithProviders } from '../../tests/renderWithProviders'
 import { callAgentTool, listAgentTools } from '../../lib/toolRegistry'
-import { fetchRealVenues } from '../../services/osmApi'
 import type { AgentToolParams } from '../../types/agentTool'
 import VenuePage from '../VenuePage'
 
-vi.mock('../../services/osmApi', () => ({
-  fetchRealVenues: vi.fn(),
+vi.mock('../../services/api/httpClient', () => ({
+  httpClient: {
+    request: vi.fn(),
+  },
 }))
 
-const mockedFetchRealVenues = vi.mocked(fetchRealVenues)
+const mockedHttpRequest = vi.mocked(httpClient.request)
+
+function createAxiosResponse(data: unknown): Awaited<ReturnType<typeof httpClient.request>> {
+  return { data } as Awaited<ReturnType<typeof httpClient.request>>
+}
+
+function renderVenuePage() {
+  return renderWithProviders(<VenuePage />)
+}
 
 async function waitForVenueTools(): Promise<void> {
   await waitFor(() => {
@@ -44,19 +55,23 @@ function getActiveAgentStatus(): HTMLElement {
 
 describe('VenuePage', () => {
   beforeEach(() => {
-    mockedFetchRealVenues.mockResolvedValue([
-      {
-        id: 1,
-        name: 'Jena Convention Hotel',
-        latitude: 50.9271,
-        longitude: 11.5892,
-        category: 'hotel',
-      },
-    ])
+    mockedHttpRequest.mockReset()
+    mockedHttpRequest.mockResolvedValue(
+      createAxiosResponse({
+        elements: [
+          {
+            id: 1,
+            lat: 50.9271,
+            lon: 11.5892,
+            tags: { name: 'Jena Convention Hotel', tourism: 'hotel' },
+          },
+        ],
+      }),
+    )
   })
 
   it('renders local room inventory and live venue candidates', async () => {
-    render(<VenuePage />)
+    renderVenuePage()
 
     expect(screen.getByRole('heading', { name: 'Venue XYZ' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Available Rooms' })).toBeInTheDocument()
@@ -70,7 +85,7 @@ describe('VenuePage', () => {
   it('submits a quote request for an available room and date', async () => {
     const user = userEvent.setup()
 
-    render(<VenuePage />)
+    renderVenuePage()
 
     await user.type(screen.getByLabelText('Room Name'), 'Grand Hall')
     await user.type(screen.getByLabelText('Date'), '2026-05-17')
@@ -85,7 +100,7 @@ describe('VenuePage', () => {
   it('blocks quote submission when the room is booked', async () => {
     const user = userEvent.setup()
 
-    render(<VenuePage />)
+    renderVenuePage()
 
     await user.type(screen.getByLabelText('Room Name'), 'Grand Hall')
     await user.type(screen.getByLabelText('Date'), '2026-05-15')
@@ -98,9 +113,9 @@ describe('VenuePage', () => {
   })
 
   it('shows a non-blocking error when live venues cannot load', async () => {
-    mockedFetchRealVenues.mockRejectedValue(new Error('Network unavailable'))
+    mockedHttpRequest.mockRejectedValue(new Error('Network unavailable'))
 
-    render(<VenuePage />)
+    renderVenuePage()
 
     await waitFor(() => {
       expect(
@@ -112,7 +127,7 @@ describe('VenuePage', () => {
   })
 
   it('registers a room details tool for the assistant', async () => {
-    render(<VenuePage />)
+    renderVenuePage()
 
     await waitForVenueTools()
 
@@ -131,7 +146,7 @@ describe('VenuePage', () => {
   })
 
   it('registers an availability tool for the assistant', async () => {
-    render(<VenuePage />)
+    renderVenuePage()
 
     await waitForVenueTools()
 
@@ -153,7 +168,7 @@ describe('VenuePage', () => {
   })
 
   it('lets the assistant prepare the quote form for an available date', async () => {
-    render(<VenuePage />)
+    renderVenuePage()
 
     await waitForVenueTools()
 
@@ -174,7 +189,7 @@ describe('VenuePage', () => {
   })
 
   it('keeps the quote form untouched when the assistant requests a booked date', async () => {
-    render(<VenuePage />)
+    renderVenuePage()
 
     await waitForVenueTools()
 
