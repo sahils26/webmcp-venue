@@ -76,3 +76,152 @@ export interface OSMVenue {
   /** Venue category from OSM tags such as "hotel" or "events_venue". */
   category: string
 }
+
+/**
+ * Amenity detail used by the venue search result cards.
+ */
+export interface DetailedVenueAmenity {
+  /** Stable amenity id used for icons and keys. */
+  id: string
+
+  /** Compact visual marker supplied by the venue payload. */
+  icon: string
+}
+
+/**
+ * Locale codes supported by the static venue search catalog.
+ */
+export type VenueLocale = 'en' | 'de'
+
+/**
+ * Translatable copy for one venue search result.
+ */
+export interface VenueSearchResultTranslation {
+  /** Venue display name. */
+  name: string
+
+  /** City or locality shown in the card metadata. */
+  location: string
+
+  /** Expanded venue description. */
+  description: string
+
+  /** Booking cancellation policy. */
+  cancellation_policy: string
+
+  /** Compact amenity labels keyed by amenity id. */
+  compact_amenity_labels: Record<string, string>
+
+  /** Detailed amenity labels keyed by amenity id. */
+  detailed_amenity_labels: Record<string, string>
+}
+
+/**
+ * Locale-ready source venue result stored in JSON.
+ */
+export interface LocalizedVenueSearchResult {
+  /** Stable venue id. */
+  id: string
+
+  /** Maximum guest count. */
+  capacity: number
+
+  /** Daily price in euros. */
+  price_per_day: number
+
+  /** Thumbnail image path from the venue payload. */
+  thumbnail_url: string
+
+  /** Short amenity ids rendered in the compact state. */
+  top_amenities: string[]
+
+  /** Next available date in yyyy-mm-dd format. */
+  next_available_date: string
+
+  /** Full amenity set for the expanded state without translated labels. */
+  detailed_amenities: DetailedVenueAmenity[]
+
+  /** Available dates in yyyy-mm-dd format. */
+  all_available_dates: string[]
+
+  /** Additional photo paths from the venue payload. */
+  gallery_images: string[]
+
+  /** Venue room dimensions. */
+  dimensions: string
+
+  /** Locale-specific copy for this venue. */
+  translations: Record<VenueLocale, VenueSearchResultTranslation>
+}
+
+/**
+ * Locale-ready venue search catalog loaded from JSON.
+ */
+export interface VenueSearchResultCatalog {
+  /** Locale used when no language is selected. */
+  default_locale: VenueLocale
+
+  /** Locales currently shipped in the catalog. */
+  supported_locales: VenueLocale[]
+
+  /** Localized venue payloads. */
+  venues: LocalizedVenueSearchResult[]
+}
+
+/**
+ * Amenity detail with the selected locale label applied.
+ */
+export interface TranslatedVenueAmenity extends DetailedVenueAmenity {
+  /** Human-readable amenity label for the selected locale. */
+  label: string
+}
+
+/**
+ * Rich venue result payload used by compact and expanded search cards.
+ */
+export interface VenueSearchResult {
+  /** Stable venue id. */
+  id: string
+
+  /** Venue display name. */
+  name: string
+
+  /** Maximum guest count. */
+  capacity: number
+
+  /** City or locality shown in the card metadata. */
+  location: string
+
+  /** Daily price in euros. */
+  price_per_day: number
+
+  /** Thumbnail image path from the venue payload. */
+  thumbnail_url: string
+
+  /** Short amenity ids rendered in the compact state. */
+  top_amenities: string[]
+
+  /** Compact amenity labels keyed by amenity id for the selected locale. */
+  compact_amenity_labels: Record<string, string>
+
+  /** Next available date in yyyy-mm-dd format. */
+  next_available_date: string
+
+  /** Expanded venue description. */
+  description: string
+
+  /** Full amenity set for the expanded state. */
+  detailed_amenities: TranslatedVenueAmenity[]
+
+  /** Available dates in yyyy-mm-dd format. */
+  all_available_dates: string[]
+
+  /** Additional photo paths from the venue payload. */
+  gallery_images: string[]
+
+  /** Booking cancellation policy. */
+  cancellation_policy: string
+
+  /** Venue room dimensions. */
+  dimensions: string
+}

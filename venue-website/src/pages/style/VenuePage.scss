@@ -3,18 +3,19 @@
 /* Page shell and hero content. */
 .venue-page {
   min-height: 100vh;
-  padding: 56px 24px;
-  background: theme.$color-page-bg;
+  padding: 44px 24px 72px;
+  background:
+    linear-gradient(180deg, #3b1d60 0, #4c1d95 292px, theme.$color-page-bg 292px);
   color: theme.$color-ink;
 
   &__hero {
-    width: min(100%, 960px);
-    margin: 0 auto 32px;
+    width: min(100%, 1180px);
+    margin: 0 auto 28px;
   }
 
   &__eyebrow {
     margin: 0 0 12px;
-    color: theme.$theme-color;
+    color: #d8b4fe;
     font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0;
@@ -23,25 +24,25 @@
 
   &__title {
     margin: 0;
-    color: theme.$color-heading;
-    font-size: 4.5rem;
-    line-height: 1;
+    color: #ffffff;
+    font-size: 4rem;
+    line-height: 0.98;
     letter-spacing: 0;
   }
 
   &__description {
     max-width: 760px;
-    margin: 20px 0 0;
-    color: theme.$color-muted-strong;
+    margin: 18px 0 0;
+    color: #ede9fe;
     font-size: 1.05rem;
     line-height: 1.7;
   }
 
   &__grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: 24px;
-    width: min(100%, 960px);
+    width: min(100%, 1180px);
     margin: 0 auto;
   }
 
@@ -60,6 +61,21 @@
 /* Shared card-like panels used by the venue page only. */
 .venue-panel {
   @include theme.panel-surface;
+
+  &--results {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+
+    .venue-panel__header {
+      padding: 20px 22px;
+      border: 1px solid rgba(theme.$theme-color-dark, 0.12);
+      border-radius: 20px;
+      background: theme.$color-surface;
+      box-shadow: theme.$shadow-panel;
+    }
+  }
 
   &--monitor {
     background: theme.$color-panel-tint;
@@ -90,6 +106,15 @@
     color: theme.$color-muted;
     line-height: 1.55;
   }
+}
+
+/* Venue result list. */
+.venue-result-list {
+  display: grid;
+  gap: 18px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
 
 /* Local room inventory list. */
@@ -261,15 +286,21 @@
 /* Mobile layout adjustments for page-level content. */
 @media (max-width: theme.$breakpoint-mobile) {
   .venue-page {
-    padding: 40px 16px;
+    padding: 34px 16px 56px;
+    background:
+      linear-gradient(180deg, #3b1d60 0, #4c1d95 248px, theme.$color-page-bg 248px);
 
     &__title {
-      font-size: 2.75rem;
+      font-size: 2.65rem;
     }
 
     &__grid {
       grid-template-columns: 1fr;
     }
+  }
+
+  .venue-panel--results .venue-panel__header {
+    padding-right: 4px;
   }
 
   .room-card {

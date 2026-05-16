@@ -1,23 +1,10 @@
 import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { httpClient } from '../../services/api/httpClient'
+import { describe, expect, it } from 'vitest'
 import { renderWithProviders } from '../../tests/renderWithProviders'
 import { callAgentTool, listAgentTools } from '../../lib/toolRegistry'
 import type { AgentToolParams } from '../../types/agentTool'
 import VenuePage from '../VenuePage'
-
-vi.mock('../../services/api/httpClient', () => ({
-  httpClient: {
-    request: vi.fn(),
-  },
-}))
-
-const mockedHttpRequest = vi.mocked(httpClient.request)
-
-function createAxiosResponse(data: unknown): Awaited<ReturnType<typeof httpClient.request>> {
-  return { data } as Awaited<ReturnType<typeof httpClient.request>>
-}
 
 function renderVenuePage() {
   return renderWithProviders(<VenuePage />)
@@ -54,32 +41,29 @@ function getActiveAgentStatus(): HTMLElement {
 }
 
 describe('VenuePage', () => {
-  beforeEach(() => {
-    mockedHttpRequest.mockReset()
-    mockedHttpRequest.mockResolvedValue(
-      createAxiosResponse({
-        elements: [
-          {
-            id: 1,
-            lat: 50.9271,
-            lon: 11.5892,
-            tags: { name: 'Jena Convention Hotel', tourism: 'hotel' },
-          },
-        ],
-      }),
-    )
-  })
-
-  it('renders local room inventory and live venue candidates', async () => {
+  it('renders venue search result cards without the parked OSM venue panel', () => {
     renderVenuePage()
 
-    expect(screen.getByRole('heading', { name: 'Venue XYZ' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Available Rooms' })).toBeInTheDocument()
-    expect(screen.getByText('Grand Hall')).toBeInTheDocument()
-    expect(screen.getByText('500 guests')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'spaces360 venues' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Available Spaces' })).toBeInTheDocument()
+    expect(screen.getByText('The Grand Hall')).toBeInTheDocument()
+    expect(screen.getByText('150 guests')).toBeInTheDocument()
+    expect(screen.getByText('€1,200')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Nearby Live Venues' })).not.toBeInTheDocument()
+  })
 
-    expect(await screen.findByText('Jena Convention Hotel')).toBeInTheDocument()
-    expect(screen.getByText('hotel')).toBeInTheDocument()
+  it('expands a venue card into the detailed spaces360 layout', async () => {
+    const user = userEvent.setup()
+
+    renderVenuePage()
+
+    await user.click(screen.getAllByRole('button', { name: 'View Details' })[0])
+
+    expect(screen.getByRole('heading', { name: 'About the Venue' })).toBeInTheDocument()
+    expect(screen.getByText('250 m²')).toBeInTheDocument()
+    expect(screen.getByText('Professional Projector & Screen')).toBeInTheDocument()
+    expect(screen.getByText(/Monday, June 15, 2026/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close Details' })).toBeInTheDocument()
   })
 
   it('submits a quote request for an available room and date', async () => {
@@ -110,20 +94,6 @@ describe('VenuePage', () => {
     expect(
       screen.getByText('Grand Hall is booked on 2026-05-15. Quote request was not sent.'),
     ).toBeInTheDocument()
-  })
-
-  it('shows a non-blocking error when live venues cannot load', async () => {
-    mockedHttpRequest.mockRejectedValue(new Error('Network unavailable'))
-
-    renderVenuePage()
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('Live venue source is unavailable right now.'),
-      ).toBeInTheDocument()
-    })
-
-    expect(screen.getByRole('heading', { name: 'Available Rooms' })).toBeInTheDocument()
   })
 
   it('registers a room details tool for the assistant', async () => {

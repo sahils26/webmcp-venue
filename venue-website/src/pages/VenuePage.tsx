@@ -1,12 +1,14 @@
 import { type ChangeEvent, type FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import AgentChat from '../components/AgentChat'
+import VenueSearchCard from '../components/VenueSearchCard'
 import {
   checkAvailabilitySchema,
   quoteRequestSchema,
   roomDetailsSchema,
 } from '../data/agentToolSchemas'
-import { roomNames, venueRooms } from '../data/venueData'
+import { venueSearchResults } from '../data/venueSearchResults'
+import { roomNames } from '../data/venueData'
 import { agentQueryRecorded, selectLastAgentQuery } from '../features/agent/agentActivitySlice'
 import {
   isQuoteDraftField,
@@ -16,7 +18,6 @@ import {
   selectQuoteDraft,
   selectQuoteStatus,
 } from '../features/quote/quoteSlice'
-import { useGetNearbyVenuesQuery } from '../features/venues/venueApi'
 import { useAgentTool } from '../hooks/useAgentTool'
 import {
   getRoomAvailability,
@@ -42,8 +43,7 @@ function getStringParam(params: AgentToolParams, key: string): string {
  * Main venue page.
  *
  * Responsibilities:
- * - Render static local room inventory.
- * - Display optional live venue candidates from RTK Query.
+ * - Render static spaces360 venue search results.
  * - Read and update Redux-managed quote and agent state.
  * - Register assistant tools that need access to app state.
  */
@@ -52,11 +52,6 @@ export default function VenuePage() {
   const lastAgentQuery = useAppSelector(selectLastAgentQuery)
   const quoteDraft = useAppSelector(selectQuoteDraft)
   const quoteStatus = useAppSelector(selectQuoteStatus)
-  const {
-    data: nearbyVenues = [],
-    isError: hasLiveVenueError,
-    isLoading: isLoadingLiveVenues,
-  } = useGetNearbyVenuesQuery()
 
   const handleQuoteFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
@@ -186,83 +181,40 @@ export default function VenuePage() {
     <main className="venue-page">
       <section className="venue-page__hero">
         <p className="venue-page__eyebrow">spaces360 prototype</p>
-        <h1 className="venue-page__title">Venue XYZ</h1>
+        <h1 className="venue-page__title">spaces360 venues</h1>
         <p className="venue-page__description">
-          This page exposes venue actions through a local tool registry so the AI
-          assistant can call them without a browser extension.
+          Find polished event spaces for corporate events, galas, workshops, and client
+          hospitality across central Germany.
         </p>
       </section>
 
       <div className="venue-page__grid">
         <div className="venue-page__primary">
-          <section className="venue-panel" aria-labelledby="available-rooms-title">
+          <section
+            className="venue-panel venue-panel--results"
+            aria-labelledby="available-rooms-title"
+          >
             <div className="venue-panel__header">
               <h2 id="available-rooms-title" className="venue-panel__title">
-                Available Rooms
+                Available Spaces
               </h2>
-              <p className="venue-panel__subtitle">
-                Local room data exposed to the registered agent tools.
-              </p>
+              <p className="venue-panel__subtitle">Curated rooms for focused event comparisons.</p>
             </div>
 
-            <ul className="room-list">
-              {Object.entries(venueRooms).map(([roomName, roomInfo]) => (
-                <li className="room-card" key={roomName}>
-                  <div className="room-card__header">
-                    <h3 className="room-card__name">{roomName}</h3>
-                    <span className="room-card__capacity">{roomInfo.capacity} guests</span>
-                  </div>
-
-                  <dl className="room-card__details">
-                    <div>
-                      <dt>Price per day</dt>
-                      <dd>{roomInfo.pricePerDay.toLocaleString()}</dd>
-                    </div>
-                    <div>
-                      <dt>Projector</dt>
-                      <dd>{roomInfo.hasProjector ? 'Available' : 'Not available'}</dd>
-                    </div>
-                  </dl>
+            <ul className="venue-result-list">
+              {venueSearchResults.map((venue) => (
+                <li key={venue.id}>
+                  <VenueSearchCard venue={venue} />
                 </li>
               ))}
             </ul>
           </section>
 
-          <section className="venue-panel" aria-labelledby="live-venues-title">
-            <div className="venue-panel__header">
-              <h2 id="live-venues-title" className="venue-panel__title">
-                Nearby Live Venues
-              </h2>
-              <p className="venue-panel__subtitle">
-                OpenStreetMap results for hotels and event venues in Jena.
-              </p>
-            </div>
-
-            {isLoadingLiveVenues && (
-              <p className="live-venue-status">Loading live venue source...</p>
-            )}
-
-            {hasLiveVenueError && (
-              <p className="live-venue-status live-venue-status--error">
-                Live venue source is unavailable right now.
-              </p>
-            )}
-
-            {!isLoadingLiveVenues && !hasLiveVenueError && nearbyVenues.length === 0 && (
-              <p className="live-venue-status">No nearby venues returned from the live source.</p>
-            )}
-
-            {nearbyVenues.length > 0 && (
-              <ul className="live-venue-list">
-                {nearbyVenues.map((venue) => (
-                  <li className="live-venue-list__item" key={venue.id}>
-                    <span>{venue.name}</span>
-                    <small>{venue.category}</small>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {/*
+            OSM venue results are intentionally hidden for the current UI sprint.
+            Re-enable this panel with useGetNearbyVenuesQuery when API-backed venue
+            discovery features are added.
+          */}
         </div>
 
         <div className="venue-page__sidebar">
