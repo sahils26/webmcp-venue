@@ -10,10 +10,23 @@ function renderVenuePage() {
   return renderWithProviders(<VenuePage />)
 }
 
+async function renderActiveVenuePage() {
+  const user = userEvent.setup()
+
+  renderVenuePage()
+
+  await user.type(screen.getByLabelText('Describe your event'), 'I need a venue')
+  await user.click(screen.getByRole('button', { name: 'Start planning' }))
+  await screen.findByRole('heading', { name: 'spaces360 venues' })
+
+  return user
+}
+
 async function waitForVenueTools(): Promise<void> {
   await waitFor(() => {
     expect(listAgentTools().map((tool) => tool.name)).toEqual(
       expect.arrayContaining([
+        'list_available_venues',
         'get_room_details',
         'prepare_quote_request',
         'check_availability',
@@ -42,8 +55,8 @@ function getActiveAgentStatus(): HTMLElement {
 }
 
 describe('VenuePage', () => {
-  it('renders venue search result cards without the parked OSM venue panel', () => {
-    renderVenuePage()
+  it('renders venue search result cards without the parked OSM venue panel', async () => {
+    await renderActiveVenuePage()
 
     expect(screen.getByRole('heading', { name: 'spaces360 venues' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Available Spaces' })).toBeInTheDocument()
@@ -54,9 +67,7 @@ describe('VenuePage', () => {
   })
 
   it('expands a venue card into the detailed spaces360 layout', async () => {
-    const user = userEvent.setup()
-
-    renderVenuePage()
+    const user = await renderActiveVenuePage()
 
     await user.click(screen.getAllByRole('button', { name: 'View Details' })[0])
 
@@ -68,9 +79,7 @@ describe('VenuePage', () => {
   })
 
   it('submits a quote request for an available room and date', async () => {
-    const user = userEvent.setup()
-
-    renderVenuePage()
+    const user = await renderActiveVenuePage()
 
     await user.type(screen.getByLabelText('Room Name'), 'The Grand Hall')
     await user.type(screen.getByLabelText('Date'), '2026-06-15')
@@ -83,9 +92,7 @@ describe('VenuePage', () => {
   })
 
   it('blocks quote submission when the room is unavailable', async () => {
-    const user = userEvent.setup()
-
-    renderVenuePage()
+    const user = await renderActiveVenuePage()
 
     await user.type(screen.getByLabelText('Room Name'), 'The Grand Hall')
     await user.type(screen.getByLabelText('Date'), '2026-05-15')
@@ -98,7 +105,7 @@ describe('VenuePage', () => {
   })
 
   it('registers a room details tool for the assistant', async () => {
-    renderVenuePage()
+    await renderActiveVenuePage()
 
     await waitForVenueTools()
 
@@ -120,12 +127,51 @@ describe('VenuePage', () => {
     })
 
     expect(getActiveAgentStatus()).toHaveTextContent(
-      'The AI agent just requested details for River Conference Suite.',
+      'Latest assistant action: River Conference Suite.',
     )
   })
 
+  it('registers a broad venue listing tool for the assistant', async () => {
+    await renderActiveVenuePage()
+
+    await waitForVenueTools()
+
+    const allVenues = (await callVenueTool('list_available_venues', {})) as { venues: unknown[] }
+
+    expect(allVenues).toMatchObject({
+      success: true,
+      date: '',
+    })
+    expect(allVenues.venues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'The Grand Hall',
+          location: 'Erfurt',
+          capacity: 150,
+          formattedPricePerDay: '€1,200',
+          nextAvailableDate: '2026-06-15',
+        }),
+      ]),
+    )
+
+    await expect(
+      callVenueTool('list_available_venues', { date: '2026-06-15' }),
+    ).resolves.toMatchObject({
+      success: true,
+      date: '2026-06-15',
+      venues: [
+        {
+          name: 'The Grand Hall',
+          nextAvailableDate: '2026-06-15',
+        },
+      ],
+    })
+
+    expect(getActiveAgentStatus()).toHaveTextContent('Listing available venues on 2026-06-15')
+  })
+
   it('registers an availability tool for the assistant', async () => {
-    renderVenuePage()
+    await renderActiveVenuePage()
 
     await waitForVenueTools()
 
@@ -142,12 +188,12 @@ describe('VenuePage', () => {
     })
 
     expect(getActiveAgentStatus()).toHaveTextContent(
-      'Checking availability for The Grand Hall on 2026-06-15',
+      'Latest assistant action: Checking availability for The Grand Hall on 2026-06-15.',
     )
   })
 
   it('registers a pricing tool with explicit euro formatting', async () => {
-    renderVenuePage()
+    await renderActiveVenuePage()
 
     await waitForVenueTools()
 
@@ -166,7 +212,7 @@ describe('VenuePage', () => {
   })
 
   it('lets the assistant prepare the quote form for an available date', async () => {
-    renderVenuePage()
+    await renderActiveVenuePage()
 
     await waitForVenueTools()
 
@@ -187,7 +233,7 @@ describe('VenuePage', () => {
   })
 
   it('keeps the quote form untouched when the assistant requests an unavailable date', async () => {
-    renderVenuePage()
+    await renderActiveVenuePage()
 
     await waitForVenueTools()
 

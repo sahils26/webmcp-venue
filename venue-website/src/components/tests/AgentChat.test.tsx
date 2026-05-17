@@ -118,4 +118,39 @@ describe('AgentChat', () => {
 
     unregister()
   })
+
+  it('keeps leaked tool syntax out of the visible assistant response', async () => {
+    const user = userEvent.setup()
+
+    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(
+        createChatResponse({
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content:
+                  'If you give me a room name, I can call <function=get_room_details>{"roomName":"The Grand Hall"}</function> to get the details.',
+              },
+            },
+          ],
+        }),
+      ),
+    )
+
+    render(<AgentChat />)
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+    await user.type(
+      screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
+      'Which venues are available?',
+    )
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(await screen.findByText(/Please share your event date/)).toBeInTheDocument()
+    expect(screen.queryByText(/<function=/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/get_room_details/)).not.toBeInTheDocument()
+  })
 })

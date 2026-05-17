@@ -85,6 +85,17 @@ interface ChatCompletionResponse {
   }
 }
 
+const MAX_TOOL_STEPS = 8
+const TOOL_SYNTAX_LEAK_FALLBACK =
+  'I can help with that. Please share your event date, and I can check which venues are available. If you do not have a date yet, I can show the current venue options and their next available dates.'
+const INTERNAL_TOOL_SYNTAX_PATTERNS = [
+  /<\/?function\b/i,
+  /\bfunction_call\b/i,
+  /\btool_calls?\b/i,
+  /\b(call|invoke|use)\s+[`'"]?(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request)\b/i,
+  /\b(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request)\s*\(/i,
+]
+
 /**
  * System guardrails that keep the assistant scoped to venue planning tasks.
  */
@@ -99,7 +110,10 @@ STRICT RULES:
 4. Use the available tools to fetch live data whenever asked about specific rooms or dates.
 5. Before preparing a quote request, check availability for that room and date. Do not prepare a quote request for a room/date that is booked or unavailable.
 6. All venue prices are in EUR. When giving prices, use the euro-formatted value from the tool result, such as "€1,200 per day"; never convert or display prices as USD/dollars.
-7. Keep answers concise, professional, and practical.`,
+7. Keep answers concise, professional, and practical.
+8. Every visible answer must be plain English for an event planner. Never mention internal tools, function names, JSON, XML-style tags, code snippets, or that you can "call" a function.
+9. Use tools silently when needed. After receiving tool results, answer the user unless another tool call is strictly necessary.
+10. When a user asks which venues, rooms, or spaces are available, use the available venue-listing tool. If no date is provided, list the venue options with their next available dates and ask for the event date only if they need date-specific availability.`,
 }
 
 /**
@@ -208,6 +222,22 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'The assistant request failed.'
 }
 
+function hasInternalToolSyntax(content: string): boolean {
+  return INTERNAL_TOOL_SYNTAX_PATTERNS.some((pattern) => pattern.test(content))
+}
+
+/**
+ * Keeps provider/tool syntax out of the visible chat transcript.
+ *
+ * @param content - Raw assistant text returned by the model.
+ * @returns Plain-English content safe to render in the chat UI.
+ */
+function getAssistantDisplayContent(content?: string | null): string {
+  const displayContent = content?.trim() || 'Done.'
+
+  return hasInternalToolSyntax(displayContent) ? TOOL_SYNTAX_LEAK_FALLBACK : displayContent
+}
+
 /**
  * Floating assistant widget for room details, availability checks, and quote preparation.
  */
@@ -290,7 +320,7 @@ export default function AgentChat({ initialMessage }: AgentChatProps) {
 
       // Allow the model to call tools and then continue reasoning with the results.
       // The step limit prevents an accidental infinite tool-call loop.
-      for (let step = 0; step < 4; step += 1) {
+      for (let step = 0; step < MAX_TOOL_STEPS; step += 1) {
         const assistantMessage = await requestChatCompletion(
           chatMessages,
           tools,
@@ -308,7 +338,7 @@ export default function AgentChat({ initialMessage }: AgentChatProps) {
         if (!assistantMessage.tool_calls?.length) {
           setMessages((currentMessages) => [
             ...currentMessages,
-            createMessage('assistant', assistantMessage.content ?? 'Done.'),
+            createMessage('assistant', getAssistantDisplayContent(assistantMessage.content)),
           ])
           setIsLoading(false)
           return
@@ -337,7 +367,9 @@ export default function AgentChat({ initialMessage }: AgentChatProps) {
         }
       }
 
-      throw new Error('The assistant needed too many tool steps. Please try again.')
+      throw new Error(
+        'The assistant used several tool rounds without producing a final answer. Try a narrower question.',
+      )
     } catch (error) {
       if (!isCurrentRun()) {
         return

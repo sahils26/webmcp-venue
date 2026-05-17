@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getRoomAvailability,
   getRoomByName,
+  listAvailableVenues,
   resolveRoomName,
 } from '../venueAvailability'
 
@@ -40,6 +41,41 @@ describe('venue availability service', () => {
       roomName: 'The Grand Hall',
       date: '2026-06-15',
       available: true,
+    })
+  })
+
+  it('lists all venue options when no date is provided', () => {
+    const result = listAvailableVenues()
+
+    expect(result).toMatchObject({
+      success: true,
+      date: '',
+      message: 'Here are the available venues and their next available dates.',
+    })
+    expect(result.venues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'The Grand Hall',
+          location: 'Erfurt',
+          capacity: 150,
+          formattedPricePerDay: '€1,200',
+          nextAvailableDate: '2026-06-15',
+        }),
+      ]),
+    )
+  })
+
+  it('filters available venue options by date', () => {
+    expect(listAvailableVenues('2026-06-15')).toMatchObject({
+      success: true,
+      date: '2026-06-15',
+      venues: [
+        {
+          name: 'The Grand Hall',
+          nextAvailableDate: '2026-06-15',
+        },
+      ],
+      message: '1 venue is available on 2026-06-15.',
     })
   })
 

@@ -1,6 +1,28 @@
 import type { JsonSchema } from '../types/agentTool'
 
 /**
+ * Schema for list_available_venues.
+ *
+ * Expected model arguments:
+ * - date: optional event date in yyyy-mm-dd format.
+ *
+ * Tool response:
+ * - success true with all venues and their next available date when no date is supplied.
+ * - success true with venues available on the supplied date when a valid date is supplied.
+ * - success false when a supplied date is invalid.
+ */
+export const availableVenuesSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    date: {
+      type: 'string',
+      description:
+        'Optional event date in YYYY-MM-DD format. Omit this when the user asks for available venues without a specific date.',
+    },
+  },
+}
+
+/**
  * Schema for get_room_details.
  *
  * Expected model arguments:

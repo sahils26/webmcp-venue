@@ -57,6 +57,46 @@ function toVenueRoom(venue: VenueSearchResult): VenueRoom {
 export const roomNames = venueSearchResults.map((venue) => venue.name)
 
 /**
+ * Lists venues for broad availability questions.
+ *
+ * @param rawDate - Optional date to filter against, in yyyy-mm-dd or supported natural language format.
+ * @returns Venue summaries safe to pass back to the model.
+ */
+export function listAvailableVenues(rawDate?: unknown) {
+  const requestedDate = typeof rawDate === 'string' ? rawDate.trim() : ''
+  const date = requestedDate ? normalizeDateKey(requestedDate) : ''
+
+  if (requestedDate && !date) {
+    return {
+      success: false,
+      date: '',
+      venues: [],
+      message: 'Please provide a valid date to check venue availability.',
+    }
+  }
+
+  const matchingVenues = date
+    ? venueSearchResults.filter((venue) => venue.all_available_dates.includes(date))
+    : venueSearchResults
+
+  return {
+    success: true,
+    date,
+    venues: matchingVenues.map((venue) => ({
+      name: venue.name,
+      location: venue.location,
+      capacity: venue.capacity,
+      formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
+      nextAvailableDate: venue.next_available_date,
+      availableDates: venue.all_available_dates,
+    })),
+    message: date
+      ? `${matchingVenues.length} venue${matchingVenues.length === 1 ? ' is' : 's are'} available on ${date}.`
+      : 'Here are the available venues and their next available dates.',
+  }
+}
+
+/**
  * Resolves user/model supplied room names against the canonical JSON venue catalog.
  *
  * @param rawRoomName - Unknown room input from a form field or model tool call.

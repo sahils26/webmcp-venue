@@ -4,6 +4,7 @@ import AgentChat from '../components/AgentChat'
 import WelcomePage from '../components/WelcomePage'
 import VenueSearchCard from '../components/VenueSearchCard'
 import {
+  availableVenuesSchema,
   checkAvailabilitySchema,
   pricingSchema,
   quoteRequestSchema,
@@ -23,6 +24,7 @@ import { useAgentTool } from '../hooks/useAgentTool'
 import {
   getRoomAvailability,
   getRoomByName,
+  listAvailableVenues,
   roomNames,
   resolveRoomName,
 } from '../services/venueAvailability'
@@ -69,6 +71,20 @@ export default function VenuePage() {
       ),
     )
   }
+
+  useAgentTool(
+    {
+      name: 'list_available_venues',
+      description:
+        'Lists venue options for broad user questions like "which venues are available?" If a date is provided, returns only venues available on that date; otherwise returns all venues with their next available dates.',
+      schema: availableVenuesSchema,
+    },
+    (params) => {
+      const date = getStringParam(params, 'date')
+      dispatch(agentQueryRecorded(date ? `Listing available venues on ${date}` : 'Listing venues'))
+      return listAvailableVenues(date)
+    },
+  )
 
   useAgentTool(
     {
@@ -234,12 +250,10 @@ export default function VenuePage() {
             </div>
             {lastAgentQuery ? (
               <p className="agent-status agent-status--active">
-                The AI agent just requested details for <strong>{lastAgentQuery}</strong>.
+                Latest assistant action: <strong>{lastAgentQuery}</strong>.
               </p>
             ) : (
-              <p className="agent-status">
-                Waiting for the AI agent to invoke <code>get_room_details</code>.
-              </p>
+              <p className="agent-status">Waiting for the assistant to check a venue.</p>
             )}
           </aside>
 
