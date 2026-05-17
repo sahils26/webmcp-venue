@@ -9,7 +9,6 @@ import {
   roomDetailsSchema,
 } from '../data/agentToolSchemas'
 import { venueSearchResults } from '../data/venueSearchResults'
-import { roomNames } from '../data/venueData'
 import { agentQueryRecorded, selectLastAgentQuery } from '../features/agent/agentActivitySlice'
 import {
   isQuoteDraftField,
@@ -23,6 +22,7 @@ import { useAgentTool } from '../hooks/useAgentTool'
 import {
   getRoomAvailability,
   getRoomByName,
+  roomNames,
   resolveRoomName,
 } from '../services/venueAvailability'
 import type { AgentToolParams } from '../types/agentTool'
@@ -70,7 +70,7 @@ export default function VenuePage() {
     (params) => {
       const roomName = resolveRoomName(getStringParam(params, 'roomName'))
       const roomInfo = getRoomByName(roomName)
-      dispatch(agentQueryRecorded(roomName))
+      dispatch(agentQueryRecorded(roomInfo?.name ?? roomName))
       if (roomInfo) {
         return { success: true, data: roomInfo }
       }
@@ -154,12 +154,15 @@ export default function VenuePage() {
     (params) => {
       const roomName = resolveRoomName(getStringParam(params, 'roomName'))
       const roomInfo = getRoomByName(roomName)
-      dispatch(agentQueryRecorded(roomName))
+      dispatch(agentQueryRecorded(roomInfo?.name ?? roomName))
       if (roomInfo) {
         return {
           success: true,
-          roomName,
+          roomName: roomInfo.name,
           pricePerDay: roomInfo.pricePerDay,
+          currencyCode: roomInfo.currencyCode,
+          formattedPricePerDay: roomInfo.formattedPricePerDay,
+          priceDescription: `${roomInfo.formattedPricePerDay} per day`,
         }
       }
       return {

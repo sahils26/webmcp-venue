@@ -17,6 +17,7 @@ async function waitForVenueTools(): Promise<void> {
         'get_room_details',
         'prepare_quote_request',
         'check_availability',
+        'get_pricing',
       ]),
     )
   })
@@ -71,28 +72,28 @@ describe('VenuePage', () => {
 
     renderVenuePage()
 
-    await user.type(screen.getByLabelText('Room Name'), 'Grand Hall')
-    await user.type(screen.getByLabelText('Date'), '2026-05-17')
+    await user.type(screen.getByLabelText('Room Name'), 'The Grand Hall')
+    await user.type(screen.getByLabelText('Date'), '2026-06-15')
     await user.type(screen.getByLabelText('Your Email'), 'planner@example.com')
     await user.click(screen.getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      screen.getByText('Quote requested for Grand Hall on 2026-05-17 by planner@example.com.'),
+      screen.getByText('Quote requested for The Grand Hall on 2026-06-15 by planner@example.com.'),
     ).toBeInTheDocument()
   })
 
-  it('blocks quote submission when the room is booked', async () => {
+  it('blocks quote submission when the room is unavailable', async () => {
     const user = userEvent.setup()
 
     renderVenuePage()
 
-    await user.type(screen.getByLabelText('Room Name'), 'Grand Hall')
+    await user.type(screen.getByLabelText('Room Name'), 'The Grand Hall')
     await user.type(screen.getByLabelText('Date'), '2026-05-15')
     await user.type(screen.getByLabelText('Your Email'), 'planner@example.com')
     await user.click(screen.getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      screen.getByText('Grand Hall is booked on 2026-05-15. Quote request was not sent.'),
+      screen.getByText('The Grand Hall is not available on 2026-05-15. Quote request was not sent.'),
     ).toBeInTheDocument()
   })
 
@@ -101,17 +102,25 @@ describe('VenuePage', () => {
 
     await waitForVenueTools()
 
-    await expect(callVenueTool('get_room_details', { roomName: 'lounge' })).resolves.toEqual({
+    await expect(
+      callVenueTool('get_room_details', { roomName: 'river conference suite' }),
+    ).resolves.toMatchObject({
       success: true,
       data: {
-        capacity: 50,
-        pricePerDay: 800,
-        hasProjector: false,
+        id: 'river-conference-suite',
+        name: 'River Conference Suite',
+        capacity: 120,
+        location: 'Gera',
+        pricePerDay: 1100,
+        currencyCode: 'EUR',
+        formattedPricePerDay: '€1,100',
+        hasProjector: true,
+        availableDates: ['2026-07-03', '2026-07-10', '2026-07-24'],
       },
     })
 
     expect(getActiveAgentStatus()).toHaveTextContent(
-      'The AI agent just requested details for Lounge.',
+      'The AI agent just requested details for River Conference Suite.',
     )
   })
 
@@ -123,18 +132,37 @@ describe('VenuePage', () => {
     await expect(
       callVenueTool('check_availability', {
         roomName: 'Grand Hall',
-        date: '2026-05-17',
+        date: '2026-06-15',
       }),
     ).resolves.toMatchObject({
       success: true,
-      roomName: 'Grand Hall',
-      date: '2026-05-17',
+      roomName: 'The Grand Hall',
+      date: '2026-06-15',
       available: true,
     })
 
     expect(getActiveAgentStatus()).toHaveTextContent(
-      'Checking availability for Grand Hall on 2026-05-17',
+      'Checking availability for The Grand Hall on 2026-06-15',
     )
+  })
+
+  it('registers a pricing tool with explicit euro formatting', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    await expect(
+      callVenueTool('get_pricing', {
+        roomName: 'Grand Hall',
+      }),
+    ).resolves.toEqual({
+      success: true,
+      roomName: 'The Grand Hall',
+      pricePerDay: 1200,
+      currencyCode: 'EUR',
+      formattedPricePerDay: '€1,200',
+      priceDescription: '€1,200 per day',
+    })
   })
 
   it('lets the assistant prepare the quote form for an available date', async () => {
@@ -145,7 +173,7 @@ describe('VenuePage', () => {
     await expect(
       callVenueTool('prepare_quote_request', {
         roomName: 'Grand Hall',
-        date: '2026-05-17',
+        date: '2026-06-15',
         email: 'planner@example.com',
       }),
     ).resolves.toMatchObject({
@@ -153,12 +181,12 @@ describe('VenuePage', () => {
       available: true,
     })
 
-    expect(screen.getByLabelText('Room Name')).toHaveValue('Grand Hall')
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-05-17')
+    expect(screen.getByLabelText('Room Name')).toHaveValue('The Grand Hall')
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-06-15')
     expect(screen.getByLabelText('Your Email')).toHaveValue('planner@example.com')
   })
 
-  it('keeps the quote form untouched when the assistant requests a booked date', async () => {
+  it('keeps the quote form untouched when the assistant requests an unavailable date', async () => {
     renderVenuePage()
 
     await waitForVenueTools()
@@ -172,12 +200,14 @@ describe('VenuePage', () => {
     ).resolves.toMatchObject({
       success: false,
       available: false,
-      message: 'Grand Hall is booked on 2026-05-15. Quote request form was not prepared.',
+      message: 'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
     })
 
     expect(screen.getByLabelText('Room Name')).toHaveValue('')
     expect(
-      screen.getByText('Grand Hall is booked on 2026-05-15. Quote request form was not prepared.'),
+      screen.getByText(
+        'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
+      ),
     ).toBeInTheDocument()
   })
 })

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { VenueSearchResult } from '../types/venue'
+import { formatVenueCurrency } from '../utils/currency'
 import './style/VenueSearchCard.scss'
 
 interface VenueSearchCardProps {
@@ -11,12 +12,6 @@ interface IconProps {
 }
 
 type IconComponent = (props: IconProps) => ReactNode
-
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-  style: 'currency',
-})
 
 const compactDateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
@@ -127,7 +122,7 @@ const amenityIcons: Record<string, { Icon: IconComponent; label: string }> = {
 export default function VenueSearchCard({ venue }: VenueSearchCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const detailsId = `${venue.id}-details`
-  const formattedPrice = currencyFormatter.format(venue.price_per_day)
+  const formattedPrice = formatVenueCurrency(venue.price_per_day)
   const nextAvailableDate = formatDate(venue.next_available_date, compactDateFormatter)
 
   return (

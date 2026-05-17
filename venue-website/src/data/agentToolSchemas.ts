@@ -4,10 +4,12 @@ import type { JsonSchema } from '../types/agentTool'
  * Schema for get_room_details.
  *
  * Expected model arguments:
- * - roomName: one of the room names in venueData, or a close case-insensitive match.
+ * - roomName: one of the venue names in venueSearchResults.json, or a close
+ *   case-insensitive match.
  *
  * Tool response:
- * - success true with room capacity, daily price, and projector availability.
+ * - success true with room capacity, daily price, EUR currency code, formatted
+ *   euro price, and projector availability.
  * - success false with a list of valid rooms when the room is unknown.
  */
 export const roomDetailsSchema: JsonSchema = {
@@ -16,7 +18,7 @@ export const roomDetailsSchema: JsonSchema = {
     roomName: {
       type: 'string',
       description:
-        "The name of the room to get details for (e.g., 'Grand Hall', 'Meeting Room A', 'Lounge')",
+        "The venue name to get details for (e.g., 'The Grand Hall', 'River Conference Suite')",
     },
   },
   required: ['roomName'],
@@ -64,7 +66,7 @@ export const quoteRequestSchema: JsonSchema = {
   properties: {
     roomName: {
       type: 'string',
-      description: "The room the planner wants to book, such as 'Grand Hall'.",
+      description: "The venue the planner wants to book, such as 'The Grand Hall'.",
     },
     date: {
       type: 'string',
@@ -82,10 +84,11 @@ export const quoteRequestSchema: JsonSchema = {
  * Schema for get_pricing.
  *
  * Expected model arguments:
- * - roomName: one of the room names in venueData.
+ * - roomName: one of the venue names in venueSearchResults.json.
  *
  * Tool response:
- * - success true with pricePerDay for the requested room.
+ * - success true with pricePerDay, currencyCode, formattedPricePerDay, and
+ *   priceDescription for the requested room.
  * - success false when the room is unknown.
  */
 export const pricingSchema: JsonSchema = {
@@ -93,7 +96,8 @@ export const pricingSchema: JsonSchema = {
   properties: {
     roomName: {
       type: 'string',
-      description: "The name of the room to get pricing for (e.g., 'Grand Hall', 'Lounge')",
+      description:
+        "The venue name to get pricing for (e.g., 'The Grand Hall', 'River Conference Suite')",
     },
   },
   required: ['roomName'],

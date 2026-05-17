@@ -52,10 +52,10 @@ describe('AgentChat', () => {
       },
       () => ({
         success: true,
-        roomName: 'Grand Hall',
-        date: '2026-05-17',
+        roomName: 'The Grand Hall',
+        date: '2026-06-15',
         available: true,
-        message: 'Grand Hall is available on 2026-05-17.',
+        message: 'The Grand Hall is available on 2026-06-15.',
       }),
     )
 
@@ -76,7 +76,7 @@ describe('AgentChat', () => {
                       id: 'call-1',
                       function: {
                         name: 'check_availability',
-                        arguments: '{"roomName":"Grand Hall","date":"2026-05-17"}',
+                        arguments: '{"roomName":"The Grand Hall","date":"2026-06-15"}',
                       },
                     },
                   ],
@@ -91,7 +91,7 @@ describe('AgentChat', () => {
               {
                 message: {
                   role: 'assistant',
-                  content: 'Grand Hall is available on 2026-05-17.',
+                  content: 'The Grand Hall is available on 2026-06-15.',
                 },
               },
             ],
@@ -104,11 +104,13 @@ describe('AgentChat', () => {
     await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
     await user.type(
       screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
-      'Is Grand Hall free on May 17?',
+      'Is The Grand Hall free on June 15?',
     )
     await user.click(screen.getByRole('button', { name: 'Send' }))
 
-    expect(await screen.findByText('Grand Hall is available on 2026-05-17.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('The Grand Hall is available on 2026-06-15.'),
+    ).toBeInTheDocument()
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledTimes(2)

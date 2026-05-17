@@ -1,27 +1,34 @@
 /**
- * Static room details displayed in the UI and returned by the room detail tool.
+ * Venue details returned by assistant room-style tools.
  */
 export interface VenueRoom {
+  /** Stable venue id from the JSON catalog. */
+  id: string
+
+  /** Venue display name shown to users. */
+  name: string
+
   /** Maximum number of guests supported by the room. */
   capacity: number
+
+  /** City or locality shown in the venue catalog. */
+  location: string
 
   /** Daily booking cost in the app's configured currency. */
   pricePerDay: number
 
+  /** ISO 4217 currency code for the venue price. */
+  currencyCode: 'EUR'
+
+  /** Display-ready daily price, formatted with the euro symbol. */
+  formattedPricePerDay: string
+
   /** Whether built-in projector equipment is available in the room. */
   hasProjector: boolean
+
+  /** Bookable dates from the JSON catalog. */
+  availableDates: string[]
 }
-
-/**
- * Room inventory keyed by the human-readable room name shown to users.
- */
-export type VenueRoomMap = Record<string, VenueRoom>
-
-/**
- * Booked dates keyed by room name.
- * Each date must be normalized as yyyy-mm-dd.
- */
-export type BookedDateMap = Record<string, string[]>
 
 /**
  * Standard availability response returned to both UI code and assistant tools.
@@ -36,7 +43,10 @@ export interface RoomAvailabilityResult {
   /** Normalized yyyy-mm-dd date, or an empty string when parsing failed. */
   date: string
 
-  /** True only when the room exists, date is valid, and date is not booked. */
+  /**
+   * True only when the room exists, date is valid, and date appears in the JSON
+   * availability list.
+   */
   available: boolean
 
   /** Human-readable status safe to display in the UI or return to the model. */

@@ -7,31 +7,38 @@ import {
 
 describe('venue availability service', () => {
   it('resolves room names case-insensitively', () => {
-    expect(resolveRoomName('grand hall')).toBe('Grand Hall')
+    expect(resolveRoomName('grand hall')).toBe('The Grand Hall')
   })
 
-  it('returns room details for known rooms', () => {
-    expect(getRoomByName('Meeting Room A')).toEqual({
-      capacity: 20,
-      pricePerDay: 300,
+  it('returns room details from the JSON venue catalog', () => {
+    expect(getRoomByName('river-conference-suite')).toEqual({
+      id: 'river-conference-suite',
+      name: 'River Conference Suite',
+      capacity: 120,
+      location: 'Gera',
+      pricePerDay: 1100,
+      currencyCode: 'EUR',
+      formattedPricePerDay: '€1,100',
       hasProjector: true,
+      availableDates: ['2026-07-03', '2026-07-10', '2026-07-24'],
     })
   })
 
-  it('marks a known booked date as unavailable', () => {
+  it('marks a date outside the JSON availability list as unavailable', () => {
     expect(getRoomAvailability('Grand Hall', '2026-05-15')).toMatchObject({
       success: true,
-      roomName: 'Grand Hall',
+      roomName: 'The Grand Hall',
       date: '2026-05-15',
       available: false,
+      message: 'The Grand Hall is not available on 2026-05-15.',
     })
   })
 
-  it('marks an open date as available', () => {
-    expect(getRoomAvailability('Grand Hall', '2026-05-17')).toMatchObject({
+  it('marks a JSON-listed available date as available', () => {
+    expect(getRoomAvailability('Grand Hall', '2026-06-15')).toMatchObject({
       success: true,
-      roomName: 'Grand Hall',
-      date: '2026-05-17',
+      roomName: 'The Grand Hall',
+      date: '2026-06-15',
       available: true,
     })
   })
@@ -48,7 +55,7 @@ describe('venue availability service', () => {
   it('returns a helpful error for invalid dates', () => {
     expect(getRoomAvailability('Grand Hall', '2026-02-31')).toMatchObject({
       success: false,
-      roomName: 'Grand Hall',
+      roomName: 'The Grand Hall',
       date: '',
       available: false,
       message: 'Please provide a valid date for the quote request.',
