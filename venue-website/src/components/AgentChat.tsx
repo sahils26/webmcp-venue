@@ -211,49 +211,57 @@ function getErrorMessage(error: unknown): string {
 /**
  * Floating assistant widget for room details, availability checks, and quote preparation.
  */
-export default function AgentChat() {
+interface AgentChatProps {
+  /** Optional message from welcome page to auto-submit as first user message. */
+  initialMessage?: string | null
+}
+
+export default function AgentChat({ initialMessage }: AgentChatProps) {
   const [chatState, setChatState] = useState<ChatState>('closed')
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState(createInitialMessages)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    // If we have an initial message, start fresh (don't load from localStorage)
+    if (initialMessage) {
+      return createInitialMessages()
+    }
+
+    // Otherwise, load messages from localStorage on initial mount
+    try {
+      const saved = localStorage.getItem('agentChatMessages')
+      return saved ? JSON.parse(saved) : createInitialMessages()
+    } catch {
+      return createInitialMessages()
+    }
+  })
   const [isLoading, setIsLoading] = useState(false)
   const [toolStatus, setToolStatus] = useState('')
   const abortControllerRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const activeRunIdRef = useRef(0)
 
+  // Persist messages to localStorage whenever they change
   useEffect(() => {
-    if (chatState === 'open') {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    try {
+      localStorage.setItem('agentChatMessages', JSON.stringify(messages))
+    } catch (error) {
+      console.error('Failed to save chat messages:', error)
     }
-  }, [chatState, messages, isLoading, toolStatus])
+  }, [messages])
 
-  const resetConversation = () => {
-    setInput('')
-    setMessages(createInitialMessages())
-    setIsLoading(false)
-    setToolStatus('')
-  }
+  // Clear localStorage when coming from welcome page with initial message
+  useEffect(() => {
+    if (initialMessage) {
+      try {
+        localStorage.removeItem('agentChatMessages')
+      } catch (error) {
+        console.error('Failed to clear chat messages:', error)
+      }
+    }
+  }, [initialMessage])
 
-  const handleOpen = () => {
-    setChatState('open')
-  }
-
-  const handleMinimize = () => {
-    setChatState('minimized')
-  }
-
-  const handleClose = () => {
-    activeRunIdRef.current += 1
-    abortControllerRef.current?.abort()
-    abortControllerRef.current = null
-    resetConversation()
-    setChatState('closed')
-  }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
-    const trimmedInput = input.trim()
+  // Helper function to submit a message (used by both form and initial message effect)
+  const submitMessage = async (messageText: string) => {
+    const trimmedInput = messageText.trim()
 
     if (!trimmedInput || isLoading) {
       return
@@ -302,6 +310,7 @@ export default function AgentChat() {
             ...currentMessages,
             createMessage('assistant', assistantMessage.content ?? 'Done.'),
           ])
+          setIsLoading(false)
           return
         }
 
@@ -338,16 +347,49 @@ export default function AgentChat() {
         ...currentMessages,
         createMessage('assistant', getErrorMessage(error), 'error'),
       ])
+      setIsLoading(false)
     } finally {
-      if (isCurrentRun()) {
-        setIsLoading(false)
-        setToolStatus('')
-      }
-
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null
-      }
+      setToolStatus('')
     }
+  }
+
+  // Auto-submit initial message from welcome page
+  useEffect(() => {
+    if (initialMessage && initialMessage.trim()) {
+      setChatState('open')
+      // Use a longer delay to ensure all tools are registered first
+      const timer = setTimeout(() => {
+        submitMessage(initialMessage)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [initialMessage])
+
+  useEffect(() => {
+    if (chatState === 'open') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+  }, [chatState, messages, isLoading, toolStatus])
+
+  const handleOpen = () => {
+    setChatState('open')
+  }
+
+  const handleMinimize = () => {
+    setChatState('minimized')
+  }
+
+  const handleClose = () => {
+    activeRunIdRef.current += 1
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    // Just close the chat without clearing messages
+    setChatState('closed')
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    await submitMessage(input)
   }
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {

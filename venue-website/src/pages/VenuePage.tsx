@@ -1,6 +1,7 @@
-import { type ChangeEvent, type FormEvent } from 'react'
+import { type ChangeEvent, type FormEvent, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import AgentChat from '../components/AgentChat'
+import WelcomePage from '../components/WelcomePage'
 import VenueSearchCard from '../components/VenueSearchCard'
 import {
   checkAvailabilitySchema,
@@ -38,6 +39,15 @@ export default function VenuePage() {
   const lastAgentQuery = useAppSelector(selectLastAgentQuery)
   const quoteDraft = useAppSelector(selectQuoteDraft)
   const quoteStatus = useAppSelector(selectQuoteStatus)
+
+  // Welcome page state management
+  const [hasInteracted, setHasInteracted] = useState(false)
+  const [initialMessage, setInitialMessage] = useState<string | null>(null)
+
+  const handleWelcomeSubmit = (message: string) => {
+    setInitialMessage(message)
+    setHasInteracted(true)
+  }
 
   const handleQuoteFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
@@ -172,6 +182,10 @@ export default function VenuePage() {
     },
   )
 
+  if (!hasInteracted) {
+    return <WelcomePage onSubmit={handleWelcomeSubmit} />
+  }
+
   return (
     <main className="venue-page">
       <section className="venue-page__hero">
@@ -285,7 +299,7 @@ export default function VenuePage() {
         </div>
       </div>
 
-      <AgentChat />
+      <AgentChat initialMessage={initialMessage} />
     </main>
   )
 }
