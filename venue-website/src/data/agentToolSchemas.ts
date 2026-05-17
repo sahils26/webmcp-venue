@@ -77,3 +77,24 @@ export const quoteRequestSchema: JsonSchema = {
   },
   required: ['roomName', 'date', 'email'],
 }
+
+/**
+ * Schema for get_pricing.
+ *
+ * Expected model arguments:
+ * - roomName: one of the room names in venueData.
+ *
+ * Tool response:
+ * - success true with pricePerDay for the requested room.
+ * - success false when the room is unknown.
+ */
+export const pricingSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    roomName: {
+      type: 'string',
+      description: "The name of the room to get pricing for (e.g., 'Grand Hall', 'Lounge')",
+    },
+  },
+  required: ['roomName'],
+}

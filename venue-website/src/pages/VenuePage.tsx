@@ -4,6 +4,7 @@ import AgentChat from '../components/AgentChat'
 import VenueSearchCard from '../components/VenueSearchCard'
 import {
   checkAvailabilitySchema,
+  pricingSchema,
   quoteRequestSchema,
   roomDetailsSchema,
 } from '../data/agentToolSchemas'
@@ -27,26 +28,11 @@ import {
 import type { AgentToolParams } from '../types/agentTool'
 import './style/VenuePage.scss'
 
-/**
- * Safely extracts a string value from model-supplied tool parameters.
- *
- * @param params - Parsed tool arguments from the assistant.
- * @param key - Argument name to read.
- * @returns The string value when present, otherwise an empty string.
- */
 function getStringParam(params: AgentToolParams, key: string): string {
   const value = params[key]
   return typeof value === 'string' ? value : ''
 }
 
-/**
- * Main venue page.
- *
- * Responsibilities:
- * - Render static spaces360 venue search results.
- * - Read and update Redux-managed quote and agent state.
- * - Register assistant tools that need access to app state.
- */
 export default function VenuePage() {
   const dispatch = useAppDispatch()
   const lastAgentQuery = useAppSelector(selectLastAgentQuery)
@@ -55,7 +41,6 @@ export default function VenuePage() {
 
   const handleQuoteFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
-
     if (isQuoteDraftField(name)) {
       dispatch(quoteDraftFieldChanged({ name, value }))
     }
@@ -63,14 +48,11 @@ export default function VenuePage() {
 
   const handleQuoteSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
     const availability = getRoomAvailability(quoteDraft.roomName, quoteDraft.date)
-
     if (!availability.success || !availability.available) {
       dispatch(quoteStatusSet(`${availability.message} Quote request was not sent.`))
       return
     }
-
     dispatch(
       quoteStatusSet(
         `Quote requested for ${availability.roomName} on ${availability.date} by ${quoteDraft.email}.`,
@@ -86,17 +68,12 @@ export default function VenuePage() {
       schema: roomDetailsSchema,
     },
     (params) => {
-      // This tool returns structured room data to the model so it can answer
-      // capacity, price, and equipment questions without reading the DOM.
       const roomName = resolveRoomName(getStringParam(params, 'roomName'))
       const roomInfo = getRoomByName(roomName)
-
       dispatch(agentQueryRecorded(roomName))
-
       if (roomInfo) {
         return { success: true, data: roomInfo }
       }
-
       return {
         success: false,
         message: `Room '${roomName}' not found. Available rooms are: ${roomNames.join(', ')}`,
@@ -112,12 +89,10 @@ export default function VenuePage() {
       schema: quoteRequestSchema,
     },
     (params) => {
-      // The assistant may prefill the form, but final submission stays with the user.
       const roomName = getStringParam(params, 'roomName')
       const date = getStringParam(params, 'date')
       const email = getStringParam(params, 'email')
       const availability = getRoomAvailability(roomName, date)
-
       dispatch(
         agentQueryRecorded(
           `Preparing quote request for ${availability.roomName || roomName} on ${
@@ -125,17 +100,14 @@ export default function VenuePage() {
           }`,
         ),
       )
-
       if (!availability.success || !availability.available) {
         dispatch(quoteStatusSet(`${availability.message} Quote request form was not prepared.`))
-
         return {
           success: false,
           available: availability.available,
           message: `${availability.message} Quote request form was not prepared.`,
         }
       }
-
       dispatch(
         quoteDraftPrepared({
           roomName: availability.roomName,
@@ -144,7 +116,6 @@ export default function VenuePage() {
         }),
       )
       dispatch(quoteStatusSet(null))
-
       return {
         success: true,
         available: true,
@@ -160,11 +131,9 @@ export default function VenuePage() {
       schema: checkAvailabilitySchema,
     },
     (params) => {
-      // Availability is shared by the chat flow and manual quote form submission.
       const roomName = getStringParam(params, 'roomName')
       const date = getStringParam(params, 'date')
       const availability = getRoomAvailability(roomName, date)
-
       dispatch(
         agentQueryRecorded(
           `Checking availability for ${availability.roomName || roomName} on ${
@@ -172,8 +141,31 @@ export default function VenuePage() {
           }`,
         ),
       )
-
       return availability
+    },
+  )
+
+  useAgentTool(
+    {
+      name: 'get_pricing',
+      description: 'Returns the price per day for a specific room at this event venue.',
+      schema: pricingSchema,
+    },
+    (params) => {
+      const roomName = resolveRoomName(getStringParam(params, 'roomName'))
+      const roomInfo = getRoomByName(roomName)
+      dispatch(agentQueryRecorded(roomName))
+      if (roomInfo) {
+        return {
+          success: true,
+          roomName,
+          pricePerDay: roomInfo.pricePerDay,
+        }
+      }
+      return {
+        success: false,
+        message: `Room '${roomName}' not found. Available rooms are: ${roomNames.join(', ')}`,
+      }
     },
   )
 
@@ -200,7 +192,6 @@ export default function VenuePage() {
               </h2>
               <p className="venue-panel__subtitle">Curated rooms for focused event comparisons.</p>
             </div>
-
             <ul className="venue-result-list">
               {venueSearchResults.map((venue) => (
                 <li key={venue.id}>
@@ -209,12 +200,6 @@ export default function VenuePage() {
               ))}
             </ul>
           </section>
-
-          {/*
-            OSM venue results are intentionally hidden for the current UI sprint.
-            Re-enable this panel with useGetNearbyVenuesQuery when API-backed venue
-            discovery features are added.
-          */}
         </div>
 
         <div className="venue-page__sidebar">
@@ -230,7 +215,6 @@ export default function VenuePage() {
                 Watch incoming tool calls from the AI assistant.
               </p>
             </div>
-
             {lastAgentQuery ? (
               <p className="agent-status agent-status--active">
                 The AI agent just requested details for <strong>{lastAgentQuery}</strong>.
@@ -248,11 +232,9 @@ export default function VenuePage() {
                 Request a Quote
               </h2>
               <p className="venue-panel__subtitle">
-                This form is agent-ready. The AI can fill it out, but requires your
-                click to submit.
+                This form is agent-ready. The AI can fill it out, but requires your click to submit.
               </p>
             </div>
-
             <form className="quote-form" onSubmit={handleQuoteSubmit}>
               <label className="quote-form__field" htmlFor="quote-room-name">
                 <span>Room Name</span>
@@ -265,7 +247,6 @@ export default function VenuePage() {
                   required
                 />
               </label>
-
               <label className="quote-form__field" htmlFor="quote-date">
                 <span>Date</span>
                 <input
@@ -277,7 +258,6 @@ export default function VenuePage() {
                   required
                 />
               </label>
-
               <label className="quote-form__field" htmlFor="quote-email">
                 <span>Your Email</span>
                 <input
@@ -289,12 +269,10 @@ export default function VenuePage() {
                   required
                 />
               </label>
-
               <button className="quote-form__submit" type="submit">
                 Submit Quote Request
               </button>
             </form>
-
             {quoteStatus && (
               <div className="quote-status" role="status">
                 {quoteStatus}
