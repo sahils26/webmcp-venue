@@ -1,18 +1,22 @@
 from dotenv import load_dotenv
 import os
-from openai import OpenAI
+from mistralai import Mistral
 
 # Load environment variables
 load_dotenv()
 
-# Create OpenAI client
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+# Read API key
+api_key = os.getenv("MISTRAL_API_KEY")
 
-# Send test message
-response = client.chat.completions.create(
-    model="gpt-4.1-mini",
+if not api_key:
+    raise ValueError("MISTRAL_API_KEY not found!")
+
+# Create Mistral client
+client = Mistral(api_key=api_key)
+
+# Send test request
+response = client.chat.complete(
+    model="mistral-large-latest",
     messages=[
         {
             "role": "user",
@@ -21,5 +25,5 @@ response = client.chat.completions.create(
     ]
 )
 
-# Print AI response
+# Print response
 print(response.choices[0].message.content)
