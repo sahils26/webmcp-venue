@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { callAgentTool, listAgentTools } from '../../lib/toolRegistry'
 import { renderWithProviders } from '../../tests/renderWithProviders'
 import type { AgentToolParams } from '../../types/agentTool'
-import VenuePage from '../VenuePage'
+import App from '../../App'
 
 function createChatResponse(body: unknown): Response {
   return {
@@ -14,7 +14,12 @@ function createChatResponse(body: unknown): Response {
 }
 
 function renderVenuePage() {
-  return renderWithProviders(<VenuePage />)
+  return renderAppAt()
+}
+
+function renderAppAt(path = '/') {
+  window.history.pushState({}, '', path)
+  return renderWithProviders(<App />)
 }
 
 async function waitForVenueTools(): Promise<void> {
@@ -42,111 +47,91 @@ async function callVenueTool(name: string, args: AgentToolParams): Promise<unkno
   return result
 }
 
-/**
- * Opens the first venue's details modal by clicking the first "SEE THE DETAILS" button
- * and waits for the dialog to appear.
- */
-async function openFirstVenueModal(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  const detailButtons = await screen.findAllByRole('button', { name: 'SEE THE DETAILS' })
-  await user.click(detailButtons[0])
-  await screen.findByRole('dialog')
-}
-
 describe('VenuePage', () => {
-  it('renders venue showcase sections with all venue data immediately (no gate)', () => {
+  it('renders the venue card grid without the sequential showcase', () => {
     renderVenuePage()
 
-    // Hero is visible without any interaction
     expect(
       screen.getByRole('heading', { name: /TURN YOUR EVENT INTO A/i }),
     ).toBeInTheDocument()
 
-    // All five venue showcase headings are present
-    expect(screen.getByText('THE GRAND HALL')).toBeInTheDocument()
-    expect(screen.getByText('SKYLINE LOFT')).toBeInTheDocument()
-    expect(screen.getByText('ATELIER COURTYARD')).toBeInTheDocument()
+    const venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(within(venueGrid).getByRole('heading', { name: 'The Grand Hall' })).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'Skyline Loft' })).toBeInTheDocument()
+    expect(
+      within(venueGrid).getByRole('heading', { name: 'Atelier Courtyard' }),
+    ).toBeInTheDocument()
 
-    // Venue capacity appears in specs grid
-    expect(screen.getByText('150 guests')).toBeInTheDocument()
+    expect(within(venueGrid).getByText('Up to 150 guests')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'SEE THE DETAILS' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
-    // Price appears in showcase and gallery (multiple occurrences is fine)
-    expect(screen.getAllByText('€1,200')[0]).toBeInTheDocument()
-
-    // OSM live venue panel is not present
+    expect(within(venueGrid).getByText('€1,200 / day')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Nearby Live Venues' })).not.toBeInTheDocument()
   })
 
-  it('opens the venue details modal when SEE THE DETAILS is clicked', async () => {
-    const user = userEvent.setup()
+  it('links venue cards to dedicated detail pages', () => {
     renderVenuePage()
 
-    await openFirstVenueModal(user)
-
-    const dialog = screen.getByRole('dialog')
-    expect(dialog).toBeInTheDocument()
-
-    // All detailed assertions are scoped to the dialog to avoid conflicts
-    // with identical text that appears in the background showcase section.
-    const inDialog = within(dialog)
-    expect(inDialog.getByRole('heading', { name: 'The Grand Hall', level: 2 })).toBeInTheDocument()
-    expect(inDialog.getByText('About This Space')).toBeInTheDocument()
-    expect(inDialog.getByText('250 m²')).toBeInTheDocument()
-    expect(inDialog.getByText('Professional Projector & Screen')).toBeInTheDocument()
-    expect(inDialog.getByRole('button', { name: 'Close venue details' })).toBeInTheDocument()
+    const venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(
+      within(venueGrid).getByRole('link', { name: 'View details for The Grand Hall' }),
+    ).toHaveAttribute('href', '/venues/grand-hall')
   })
 
-  it('closes the venue details modal when the close button is clicked', async () => {
+  it('cycles venue card carousel images without leaving the venue list', async () => {
     const user = userEvent.setup()
     renderVenuePage()
 
-    await openFirstVenueModal(user)
+    const venueGrid = screen.getByRole('list', { name: 'All venues' })
+    const card = within(venueGrid).getByRole('article', { name: 'The Grand Hall venue card' })
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(within(card).getByText('Featured setup')).toBeInTheDocument()
+    expect(within(card).getByText('1 / 4')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Close venue details' }))
+    await user.click(
+      within(card).getByRole('button', { name: 'Show next image for The Grand Hall' }),
+    )
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(card).getByText('Stage View')).toBeInTheDocument()
+    expect(within(card).getByText('2 / 4')).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
+
+    await user.click(
+      within(card).getByRole('button', { name: 'Show previous image for The Grand Hall' }),
+    )
+
+    expect(within(card).getByText('Featured setup')).toBeInTheDocument()
+    expect(within(card).getByText('1 / 4')).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
   })
 
-  it('closes the venue details modal when Escape is pressed', async () => {
+  it('opens the venue detail page when the card itself is clicked', async () => {
     const user = userEvent.setup()
     renderVenuePage()
 
-    await openFirstVenueModal(user)
+    const venueGrid = screen.getByRole('list', { name: 'All venues' })
+    await user.click(
+      within(venueGrid).getByRole('article', { name: 'The Grand Hall venue card' }),
+    )
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-
-    await user.keyboard('{Escape}')
-
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('opens the venue details modal from the gallery section', async () => {
-    const user = userEvent.setup()
-    renderVenuePage()
-
-    // The gallery section renders "View Details" buttons for each venue
-    const galleryButtons = await screen.findAllByRole('button', { name: 'View Details' })
-    await user.click(galleryButtons[0])
-
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/venues/grand-hall')
+    expect(screen.getByRole('heading', { name: 'The Grand Hall', level: 1 })).toBeInTheDocument()
   })
 
   it('submits a quote request for an available room and date', async () => {
     const user = userEvent.setup()
     renderVenuePage()
 
-    await openFirstVenueModal(user)
-
-    const inDialog = within(screen.getByRole('dialog'))
-    await user.clear(inDialog.getByLabelText('Room Name'))
-    await user.type(inDialog.getByLabelText('Room Name'), 'The Grand Hall')
-    await user.type(inDialog.getByLabelText('Date'), '2026-06-15')
-    await user.type(inDialog.getByLabelText('Your Email'), 'planner@example.com')
-    await user.click(inDialog.getByRole('button', { name: 'Submit Quote Request' }))
+    const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
+    await user.clear(within(quoteSection).getByLabelText('Room Name'))
+    await user.type(within(quoteSection).getByLabelText('Room Name'), 'The Grand Hall')
+    await user.type(within(quoteSection).getByLabelText('Date'), '2026-06-15')
+    await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
+    await user.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      inDialog.getByText(
+      within(quoteSection).getByText(
         'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com.',
       ),
     ).toBeInTheDocument()
@@ -156,17 +141,15 @@ describe('VenuePage', () => {
     const user = userEvent.setup()
     renderVenuePage()
 
-    await openFirstVenueModal(user)
-
-    const inDialog = within(screen.getByRole('dialog'))
-    await user.clear(inDialog.getByLabelText('Room Name'))
-    await user.type(inDialog.getByLabelText('Room Name'), 'The Grand Hall')
-    await user.type(inDialog.getByLabelText('Date'), '2026-05-15')
-    await user.type(inDialog.getByLabelText('Your Email'), 'planner@example.com')
-    await user.click(inDialog.getByRole('button', { name: 'Submit Quote Request' }))
+    const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
+    await user.clear(within(quoteSection).getByLabelText('Room Name'))
+    await user.type(within(quoteSection).getByLabelText('Room Name'), 'The Grand Hall')
+    await user.type(within(quoteSection).getByLabelText('Date'), '2026-05-15')
+    await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
+    await user.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      inDialog.getByText(
+      within(quoteSection).getByText(
         'The Grand Hall is not available on 2026-05-15. Quote request was not sent.',
       ),
     ).toBeInTheDocument()
@@ -368,7 +351,7 @@ describe('VenuePage', () => {
         ),
     )
 
-    renderVenuePage()
+    renderAppAt()
     await waitForVenueTools()
 
     await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))

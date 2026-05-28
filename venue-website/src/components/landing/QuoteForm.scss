@@ -1,15 +1,5 @@
 @use '../../styles/theme';
 
-/**
- * VenuePage.scss
- *
- * Old two-column layout styles have been removed. This file now only contains
- * styles shared across multiple landing components:
- *   - .quote-form / .quote-status  → shared by quote sections and modal
- *   - .agent-status                → retained for future use / Redux tracking
- */
-
-/* ── Quote request form ── */
 .quote-form {
   display: flex;
   flex-direction: column;
@@ -65,7 +55,6 @@
   }
 }
 
-/* ── Quote request status message ── */
 .quote-status {
   margin-top: 16px;
   padding: 10px 12px;
@@ -75,23 +64,4 @@
   color: theme.$color-success;
   font-size: 0.9rem;
   line-height: 1.5;
-}
-
-/* ── Agent activity status (retained for Redux tracking, not rendered in v2 UI) ── */
-.agent-status {
-  margin: 0;
-  color: theme.$color-muted-strong;
-  line-height: 1.7;
-
-  code {
-    padding: 0.2rem 0.45rem;
-    border-radius: theme.$radius-control;
-    background: rgba(theme.$theme-color, 0.1);
-    color: theme.$theme-color;
-    font-size: 0.95em;
-  }
-
-  &--active {
-    color: theme.$theme-color-dark;
-  }
 }

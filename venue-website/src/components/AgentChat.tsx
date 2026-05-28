@@ -124,6 +124,7 @@ STRICT RULES:
 
 interface AgentChatProps {
   minimizeRequestKey?: number
+  pageContext?: string
 }
 
 /**
@@ -247,7 +248,7 @@ function getAssistantDisplayContent(content?: string | null): string {
   return hasInternalToolSyntax(displayContent) ? TOOL_SYNTAX_LEAK_FALLBACK : displayContent
 }
 
-export default function AgentChat({ minimizeRequestKey = 0 }: AgentChatProps) {
+export default function AgentChat({ minimizeRequestKey = 0, pageContext }: AgentChatProps) {
   const [chatState, setChatState] = useState<ChatState>('closed')
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -291,6 +292,7 @@ export default function AgentChat({ minimizeRequestKey = 0 }: AgentChatProps) {
       const tools = getOpenAIToolDefinitions()
       const chatMessages: ChatRequestMessage[] = [
         SYSTEM_MESSAGE,
+        ...(pageContext ? [{ role: 'system' as const, content: pageContext }] : []),
         ...nextMessages.map(({ role, content }) => ({ role, content })),
       ]
 

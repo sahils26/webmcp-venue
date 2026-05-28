@@ -7,6 +7,45 @@ import type {
 } from '../types/venue'
 import venueSearchResultCatalogJson from './venueSearchResults.json'
 
+import grandHallEntrance from '../assets/images/THE GRAND HALL - Entrance.png'
+import grandHallSeating from '../assets/images/THE GRAND HALL - Seating View.png'
+import grandHallStage from '../assets/images/THE GRAND HALL - Stage View.png'
+import skylineLoftEntrance from '../assets/images/SKYLINE LOFT - Entrance.png'
+import skylineLoftSeating from '../assets/images/SKYLINE LOFT - Seating Layout.png'
+import skylineLoftStage from '../assets/images/SKYLINE LOFT - Stage View.png'
+import atelierCourtyardEntrance from '../assets/images/ATELIER COURTYARD - Entrance.png'
+import atelierCourtyardSeating from '../assets/images/ATELIER COURTYARD - Seating Layout.png'
+import atelierCourtyardStage from '../assets/images/ATELIER COURTYARD - Stage View.png'
+import riverSuiteEntrance from '../assets/images/RIVER CONFERENCE SUITE - Entrance.png'
+import riverSuiteSeating from '../assets/images/RIVER CONFERENCE SUITE - Seating Layout.png'
+import riverSuiteStage from '../assets/images/RIVER CONFERENCE SUITE - Stage View.png'
+import gardenPavilionEntrance from '../assets/images/GARDEN PAVILION - Entrance.png'
+import gardenPavilionSeating from '../assets/images/GARDEN PAVILION - Seating Layout.png'
+import gardenPavilionStage from '../assets/images/GARDEN PAVILION - Stage View.png'
+
+const venueImages: Record<string, { thumbnail: string; gallery: string[] }> = {
+  'grand-hall': {
+    thumbnail: grandHallEntrance,
+    gallery: [grandHallStage, grandHallSeating],
+  },
+  'skyline-loft': {
+    thumbnail: skylineLoftEntrance,
+    gallery: [skylineLoftStage, skylineLoftSeating],
+  },
+  'atelier-courtyard': {
+    thumbnail: atelierCourtyardEntrance,
+    gallery: [atelierCourtyardStage, atelierCourtyardSeating],
+  },
+  'river-conference-suite': {
+    thumbnail: riverSuiteEntrance,
+    gallery: [riverSuiteStage, riverSuiteSeating],
+  },
+  'garden-pavilion': {
+    thumbnail: gardenPavilionEntrance,
+    gallery: [gardenPavilionStage, gardenPavilionSeating],
+  },
+}
+
 const venueSearchResultCatalog = venueSearchResultCatalogJson as unknown as VenueSearchResultCatalog
 
 function getVenueTranslation(
@@ -21,6 +60,7 @@ function toVenueSearchResult(
   locale: VenueLocale,
 ): VenueSearchResult {
   const translation = getVenueTranslation(venue, locale)
+  const images = venueImages[venue.id]
 
   return {
     id: venue.id,
@@ -28,7 +68,7 @@ function toVenueSearchResult(
     capacity: venue.capacity,
     location: translation.location,
     price_per_day: venue.price_per_day,
-    thumbnail_url: venue.thumbnail_url,
+    thumbnail_url: images?.thumbnail ?? venue.thumbnail_url,
     top_amenities: venue.top_amenities,
     compact_amenity_labels: translation.compact_amenity_labels,
     next_available_date: venue.next_available_date,
@@ -41,7 +81,7 @@ function toVenueSearchResult(
         amenity.id,
     })),
     all_available_dates: venue.all_available_dates,
-    gallery_images: venue.gallery_images,
+    gallery_images: images?.gallery ?? venue.gallery_images,
     cancellation_policy: translation.cancellation_policy,
     dimensions: venue.dimensions,
   }

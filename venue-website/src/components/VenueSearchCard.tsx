@@ -109,6 +109,22 @@ function ChevronUpIcon({ className }: IconProps) {
   )
 }
 
+function ChevronLeftIcon({ className }: IconProps) {
+  return (
+    <svg className={className} aria-hidden="true" viewBox="0 0 24 24">
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  )
+}
+
+function ChevronRightIcon({ className }: IconProps) {
+  return (
+    <svg className={className} aria-hidden="true" viewBox="0 0 24 24">
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  )
+}
+
 const amenityIcons: Record<string, { Icon: IconComponent; label: string }> = {
   catering: { Icon: CateringIcon, label: 'Catering' },
   parking: { Icon: ParkingIcon, label: 'Parking' },
@@ -121,24 +137,59 @@ const amenityIcons: Record<string, { Icon: IconComponent; label: string }> = {
  */
 export default function VenueSearchCard({ venue }: VenueSearchCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const detailsId = `${venue.id}-details`
   const formattedPrice = formatVenueCurrency(venue.price_per_day)
   const nextAvailableDate = formatDate(venue.next_available_date, compactDateFormatter)
 
+  const images = [venue.thumbnail_url, ...venue.gallery_images]
+  const totalImages = images.length
+
+  const handlePrev = () => setCurrentImageIndex((i) => (i - 1 + totalImages) % totalImages)
+  const handleNext = () => setCurrentImageIndex((i) => (i + 1) % totalImages)
+
   return (
     <article className={`venue-search-card ${isExpanded ? 'venue-search-card--expanded' : ''}`}>
-      <div className="venue-search-card__summary">
-        <div
-          className="venue-search-card__media"
-          role="img"
-          aria-label={`${venue.name} thumbnail`}
-          style={{
-            backgroundImage: `linear-gradient(135deg, rgba(59, 29, 96, 0.9), rgba(76, 29, 149, 0.72)), url(${venue.thumbnail_url})`,
-          }}
-        >
-          <span>{venue.name.charAt(0)}</span>
-        </div>
+      <div className="venue-search-card__carousel" aria-label={`${venue.name} image carousel`}>
+        <img
+          className="venue-search-card__carousel-image"
+          src={images[currentImageIndex]}
+          alt={`${venue.name} — image ${currentImageIndex + 1} of ${totalImages}`}
+        />
+        {totalImages > 1 && (
+          <>
+            <button
+              className="venue-search-card__carousel-btn venue-search-card__carousel-btn--prev"
+              type="button"
+              onClick={handlePrev}
+              aria-label="Previous image"
+            >
+              <ChevronLeftIcon className="venue-search-card__carousel-btn-icon" />
+            </button>
+            <button
+              className="venue-search-card__carousel-btn venue-search-card__carousel-btn--next"
+              type="button"
+              onClick={handleNext}
+              aria-label="Next image"
+            >
+              <ChevronRightIcon className="venue-search-card__carousel-btn-icon" />
+            </button>
+            <div className="venue-search-card__carousel-dots" aria-hidden="true">
+              {images.map((_, i) => (
+                <button
+                  key={i}
+                  className={`venue-search-card__carousel-dot${i === currentImageIndex ? ' venue-search-card__carousel-dot--active' : ''}`}
+                  type="button"
+                  onClick={() => setCurrentImageIndex(i)}
+                  aria-label={`Go to image ${i + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
+      <div className="venue-search-card__summary">
         <div className="venue-search-card__main">
           <div className="venue-search-card__header-row">
             <h3 className="venue-search-card__name">{venue.name}</h3>
@@ -226,21 +277,6 @@ export default function VenueSearchCard({ venue }: VenueSearchCardProps) {
                   <span aria-hidden="true">🗓️</span>
                   {formatDate(date, longDateFormatter)}
                 </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="venue-search-card__section" aria-labelledby={`${venue.id}-photos`}>
-            <h4 id={`${venue.id}-photos`}>Additional Photos</h4>
-            <ul className="venue-search-card__photos">
-              {venue.gallery_images.map((image) => (
-                <li
-                  key={image}
-                  aria-label={`${venue.name} gallery image ${image}`}
-                  style={{
-                    backgroundImage: `linear-gradient(135deg, rgba(59, 29, 96, 0.84), rgba(76, 29, 149, 0.54)), url(${image})`,
-                  }}
-                />
               ))}
             </ul>
           </section>

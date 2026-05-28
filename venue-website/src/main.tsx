@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.scss'
+import App from './App'
 import { AppProvider } from './app/AppProvider'
-import VenuePage from './pages/VenuePage'
 
 /**
  * React mount target declared in index.html.
@@ -17,7 +17,7 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <AppProvider>
-      <VenuePage />
+      <App />
     </AppProvider>
   </StrictMode>,
 )

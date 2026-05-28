@@ -19,9 +19,9 @@
   &__title {
     margin: 0;
     color: theme.$color-heading;
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-size: 2.25rem;
     font-weight: 900;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     line-height: 1.05;
   }
 
@@ -84,10 +84,13 @@
 .gallery-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
   border: 1px solid rgba(theme.$color-ink, 0.08);
   border-radius: theme.$radius-panel;
   background: theme.$color-surface;
   box-shadow: theme.$shadow-panel;
+  color: inherit;
+  cursor: pointer;
   overflow: hidden;
   transition: box-shadow 0.2s, transform 0.2s;
 
@@ -96,28 +99,147 @@
     transform: translateY(-3px);
   }
 
-  &__image {
+  &:hover &__image {
+    transform: scale(1.03);
+  }
+
+  &__carousel {
     position: relative;
-    min-height: 200px;
+    overflow: hidden;
+    min-height: 210px;
+    isolation: isolate;
+    background: theme.$theme-color-dark;
+  }
+
+  &__image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 0.32s ease;
+  }
+
+  &__image-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     display: flex;
+    flex-direction: column;
     align-items: flex-end;
+    justify-content: flex-end;
+    gap: 4px;
     padding: 16px;
     color: #ffffff;
+    pointer-events: none;
+
+    &::after {
+      position: absolute;
+      inset: auto 0 0;
+      height: 52%;
+      background: linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.68));
+      content: '';
+    }
   }
 
   &__image-label {
     position: relative;
-    z-index: 1;
+    z-index: 2;
+    max-width: calc(100% - 76px);
+    color: #ffffff;
     font-size: 0.82rem;
     font-weight: 700;
-    opacity: 0.7;
     letter-spacing: 0.04em;
+    opacity: 0.85;
+    text-align: right;
+    text-shadow: 0 1px 14px rgba(0, 0, 0, 0.34);
+    text-transform: uppercase;
+  }
+
+  &__carousel-button {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    border-radius: theme.$radius-pill;
+    background: rgba(15, 23, 42, 0.52);
+    color: #ffffff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 900;
+    transform: translateY(-50%);
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.72);
+      background: rgba(15, 23, 42, 0.76);
+      transform: translateY(-50%) scale(1.04);
+    }
+
+    &:focus-visible {
+      @include theme.focus-ring(#ffffff, 2px);
+    }
+
+    &--previous {
+      left: 12px;
+    }
+
+    &--next {
+      right: 12px;
+    }
+  }
+
+  &__carousel-progress {
+    position: absolute;
+    z-index: 2;
+    bottom: 14px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__carousel-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: theme.$radius-pill;
+    background: rgba(255, 255, 255, 0.46);
+    transition: width 0.2s, background 0.2s;
+
+    &--active {
+      width: 22px;
+      background: #ffffff;
+    }
+  }
+
+  &__image-count {
+    position: absolute;
+    z-index: 2;
+    top: 12px;
+    right: 12px;
+    padding: 5px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: theme.$radius-pill;
+    background: rgba(15, 23, 42, 0.5);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 900;
+    line-height: 1;
   }
 
   &__body {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex: 1;
     padding: 20px;
   }
 
@@ -131,7 +253,7 @@
     color: theme.$color-heading;
     font-size: 1.05rem;
     font-weight: 900;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 
   &__location {
@@ -167,9 +289,14 @@
   &__cta {
     @include theme.themed-action(42px);
 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: auto;
     width: 100%;
     font-size: 0.88rem;
     letter-spacing: 0.04em;
+    text-decoration: none;
 
     &:focus-visible {
       @include theme.focus-ring;
@@ -189,7 +316,15 @@
     padding: 56px 16px;
   }
 
+  .gallery-section__title {
+    font-size: 1.75rem;
+  }
+
   .gallery-section__grid {
     grid-template-columns: 1fr;
+  }
+
+  .gallery-card__carousel {
+    min-height: 220px;
   }
 }

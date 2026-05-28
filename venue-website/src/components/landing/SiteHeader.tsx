@@ -1,20 +1,21 @@
+import { Link } from 'react-router-dom'
 import './SiteHeader.scss'
 
 export default function SiteHeader() {
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <a className="site-header__logo" href="#">
+        <Link className="site-header__logo" to="/">
           spaces360
-        </a>
+        </Link>
 
         <nav className="site-header__nav" aria-label="Main navigation">
-          <a href="#venues" className="site-header__nav-link">
+          <Link to="/#venues" className="site-header__nav-link">
             VENUES
-          </a>
-          <a href="#contact" className="site-header__nav-link">
+          </Link>
+          <Link to="/#quote-request-section" className="site-header__nav-link">
             RENT A SPACE
-          </a>
+          </Link>
         </nav>
 
         <div className="site-header__lang" aria-label="Language switcher">

@@ -7,6 +7,11 @@ Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
   value: vi.fn(),
 })
 
+Object.defineProperty(window, 'scrollTo', {
+  configurable: true,
+  value: vi.fn(),
+})
+
 /**
  * Shared cleanup for component tests.
  *

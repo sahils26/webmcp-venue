@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import './SiteFooter.scss'
 
 const VENUE_LINKS = [
@@ -27,7 +28,7 @@ export default function SiteFooter() {
           <ul>
             {VENUE_LINKS.map((venue) => (
               <li key={venue.id}>
-                <a href={`#${venue.id}`}>{venue.name}</a>
+                <Link to={`/venues/${venue.id}`}>{venue.name}</Link>
               </li>
             ))}
           </ul>
@@ -37,10 +38,10 @@ export default function SiteFooter() {
         <nav className="site-footer__col" aria-label="Company footer navigation">
           <h3 className="site-footer__col-title">Company</h3>
           <ul>
-            <li><a href="#venues">Browse Spaces</a></li>
-            <li><a href="#contact">Rent a Space</a></li>
-            <li><a href="#contact">Contact Us</a></li>
-            <li><a href="#">About spaces360</a></li>
+            <li><Link to="/#venues">Browse Spaces</Link></li>
+            <li><Link to="/#quote-request-section">Rent a Space</Link></li>
+            <li><Link to="/#contact">Contact Us</Link></li>
+            <li><Link to="/">About spaces360</Link></li>
           </ul>
         </nav>
 
