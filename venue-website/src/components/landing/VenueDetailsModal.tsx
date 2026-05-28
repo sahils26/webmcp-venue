@@ -1,6 +1,7 @@
 import { type ChangeEvent, type FormEvent, useEffect } from 'react'
 import type { QuoteDraft, VenueSearchResult } from '../../types/venue'
 import { formatVenueCurrency } from '../../utils/currency'
+import QuoteForm from './QuoteForm'
 import './VenueDetailsModal.scss'
 
 interface VenueDetailsModalProps {
@@ -197,50 +198,13 @@ export default function VenueDetailsModal({
               The AI assistant can fill this form automatically. You must click Submit to send.
             </p>
 
-            <form className="quote-form" onSubmit={onQuoteSubmit}>
-              <label className="quote-form__field" htmlFor="modal-quote-room">
-                <span>Room Name</span>
-                <input
-                  id="modal-quote-room"
-                  type="text"
-                  name="roomName"
-                  value={quoteDraft.roomName}
-                  onChange={onQuoteFieldChange}
-                  required
-                />
-              </label>
-              <label className="quote-form__field" htmlFor="modal-quote-date">
-                <span>Date</span>
-                <input
-                  id="modal-quote-date"
-                  type="date"
-                  name="date"
-                  value={quoteDraft.date}
-                  onChange={onQuoteFieldChange}
-                  required
-                />
-              </label>
-              <label className="quote-form__field" htmlFor="modal-quote-email">
-                <span>Your Email</span>
-                <input
-                  id="modal-quote-email"
-                  type="email"
-                  name="email"
-                  value={quoteDraft.email}
-                  onChange={onQuoteFieldChange}
-                  required
-                />
-              </label>
-              <button className="quote-form__submit" type="submit">
-                Submit Quote Request
-              </button>
-            </form>
-
-            {quoteStatus && (
-              <div className="quote-status" role="status">
-                {quoteStatus}
-              </div>
-            )}
+            <QuoteForm
+              idPrefix="modal-quote"
+              quoteDraft={quoteDraft}
+              quoteStatus={quoteStatus}
+              onQuoteFieldChange={onQuoteFieldChange}
+              onQuoteSubmit={onQuoteSubmit}
+            />
           </section>
         </div>
       </div>

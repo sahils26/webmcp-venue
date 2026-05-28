@@ -4,6 +4,7 @@ import {
   getRoomByName,
   listAvailableVenues,
   resolveRoomName,
+  searchVenues,
 } from '../venueAvailability'
 
 describe('venue availability service', () => {
@@ -95,6 +96,63 @@ describe('venue availability service', () => {
       date: '',
       available: false,
       message: 'Please provide a valid date for the quote request.',
+    })
+  })
+
+  it('searches venues by a capacity range parsed from free text', () => {
+    const result = searchVenues({
+      query: 'Can you give me details of the venue which can accomodate around 100 to 150 people?',
+    })
+
+    expect(result).toMatchObject({
+      success: true,
+      exactMatchCount: 2,
+    })
+    expect(result.venues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fit: 'exact',
+          name: 'River Conference Suite',
+          capacity: 120,
+        }),
+        expect.objectContaining({
+          fit: 'exact',
+          name: 'The Grand Hall',
+          capacity: 150,
+        }),
+      ]),
+    )
+  })
+
+  it('searches venues that can accommodate a single guest count', () => {
+    const result = searchVenues({ guestCount: 100 })
+
+    expect(result).toMatchObject({
+      success: true,
+      exactMatchCount: 2,
+    })
+    expect(result.venues.map((venue) => venue.name)).toEqual([
+      'River Conference Suite',
+      'The Grand Hall',
+    ])
+  })
+
+  it('returns close suggestions when no event type exactly matches the catalog', () => {
+    const result = searchVenues({
+      eventType: 'wedding',
+      details: 'outdoor reception with catering and parking',
+    })
+
+    expect(result).toMatchObject({
+      success: true,
+      exactMatchCount: 0,
+      suggestionCount: 3,
+      message:
+        "We don't have an exact venue match for every detail, but these are the closest suggestions from the current facilities.",
+    })
+    expect(result.venues[0]).toMatchObject({
+      fit: 'suggestion',
+      matchedAmenities: expect.arrayContaining(['outdoor', 'catering', 'parking']),
     })
   })
 })

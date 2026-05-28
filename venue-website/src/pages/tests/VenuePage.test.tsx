@@ -1,10 +1,17 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { callAgentTool, listAgentTools } from '../../lib/toolRegistry'
 import { renderWithProviders } from '../../tests/renderWithProviders'
 import type { AgentToolParams } from '../../types/agentTool'
 import VenuePage from '../VenuePage'
+
+function createChatResponse(body: unknown): Response {
+  return {
+    ok: true,
+    json: vi.fn().mockResolvedValue(body),
+  } as unknown as Response
+}
 
 function renderVenuePage() {
   return renderWithProviders(<VenuePage />)
@@ -15,6 +22,7 @@ async function waitForVenueTools(): Promise<void> {
     expect(listAgentTools().map((tool) => tool.name)).toEqual(
       expect.arrayContaining([
         'list_available_venues',
+        'search_venues',
         'get_room_details',
         'prepare_quote_request',
         'check_availability',
@@ -130,14 +138,15 @@ describe('VenuePage', () => {
 
     await openFirstVenueModal(user)
 
-    await user.clear(screen.getByLabelText('Room Name'))
-    await user.type(screen.getByLabelText('Room Name'), 'The Grand Hall')
-    await user.type(screen.getByLabelText('Date'), '2026-06-15')
-    await user.type(screen.getByLabelText('Your Email'), 'planner@example.com')
-    await user.click(screen.getByRole('button', { name: 'Submit Quote Request' }))
+    const inDialog = within(screen.getByRole('dialog'))
+    await user.clear(inDialog.getByLabelText('Room Name'))
+    await user.type(inDialog.getByLabelText('Room Name'), 'The Grand Hall')
+    await user.type(inDialog.getByLabelText('Date'), '2026-06-15')
+    await user.type(inDialog.getByLabelText('Your Email'), 'planner@example.com')
+    await user.click(inDialog.getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      screen.getByText(
+      inDialog.getByText(
         'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com.',
       ),
     ).toBeInTheDocument()
@@ -149,14 +158,15 @@ describe('VenuePage', () => {
 
     await openFirstVenueModal(user)
 
-    await user.clear(screen.getByLabelText('Room Name'))
-    await user.type(screen.getByLabelText('Room Name'), 'The Grand Hall')
-    await user.type(screen.getByLabelText('Date'), '2026-05-15')
-    await user.type(screen.getByLabelText('Your Email'), 'planner@example.com')
-    await user.click(screen.getByRole('button', { name: 'Submit Quote Request' }))
+    const inDialog = within(screen.getByRole('dialog'))
+    await user.clear(inDialog.getByLabelText('Room Name'))
+    await user.type(inDialog.getByLabelText('Room Name'), 'The Grand Hall')
+    await user.type(inDialog.getByLabelText('Date'), '2026-05-15')
+    await user.type(inDialog.getByLabelText('Your Email'), 'planner@example.com')
+    await user.click(inDialog.getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      screen.getByText(
+      inDialog.getByText(
         'The Grand Hall is not available on 2026-05-15. Quote request was not sent.',
       ),
     ).toBeInTheDocument()
@@ -214,6 +224,45 @@ describe('VenuePage', () => {
     })
   })
 
+  it('registers a flexible venue search tool for capacity and event-fit prompts', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    await expect(
+      callVenueTool('search_venues', {
+        query:
+          'Can you give me details of the venue which can accomodate around 100 to 150 people?',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      exactMatchCount: 2,
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'The Grand Hall', capacity: 150 }),
+        expect.objectContaining({ name: 'River Conference Suite', capacity: 120 }),
+      ]),
+    })
+
+    await expect(
+      callVenueTool('search_venues', {
+        eventType: 'wedding',
+        details: 'outdoor reception with catering and parking',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      exactMatchCount: 0,
+      suggestionCount: 3,
+      venues: [
+        expect.objectContaining({
+          fit: 'suggestion',
+          matchedAmenities: expect.arrayContaining(['outdoor', 'catering', 'parking']),
+        }),
+        expect.any(Object),
+        expect.any(Object),
+      ],
+    })
+  })
+
   it('handles null model arguments without crashing venue tools', async () => {
     renderVenuePage()
 
@@ -258,13 +307,9 @@ describe('VenuePage', () => {
   })
 
   it('lets the assistant prepare the quote form for an available date', async () => {
-    const user = userEvent.setup()
     renderVenuePage()
 
     await waitForVenueTools()
-
-    // Open modal so the quote form fields are accessible in the DOM
-    await openFirstVenueModal(user)
 
     await expect(
       callVenueTool('prepare_quote_request', {
@@ -279,14 +324,79 @@ describe('VenuePage', () => {
     expect(screen.getByLabelText('Your Email')).toHaveValue('planner@example.com')
   })
 
-  it('keeps the quote form untouched when the assistant requests an unavailable date', async () => {
+  it('minimizes the chat and scrolls to the filled homepage quote form', async () => {
     const user = userEvent.setup()
+
+    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          createChatResponse({
+            choices: [
+              {
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'quote-call-1',
+                      function: {
+                        name: 'prepare_quote_request',
+                        arguments:
+                          '{"roomName":"Grand Hall","date":"2026-06-15","email":"planner@example.com"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          createChatResponse({
+            choices: [
+              {
+                message: {
+                  role: 'assistant',
+                  content: 'I prepared the quote form. Please review it and submit when ready.',
+                },
+              },
+            ],
+          }),
+        ),
+    )
+
+    renderVenuePage()
+    await waitForVenueTools()
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+    await user.type(
+      screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
+      'Fill the quote form for the Grand Hall on June 15, 2026 using planner@example.com',
+    )
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
+
+    await waitFor(() => {
+      expect(within(quoteSection).getByLabelText('Room Name')).toHaveValue('The Grand Hall')
+    })
+    expect(within(quoteSection).getByLabelText('Date')).toHaveValue('2026-06-15')
+    expect(within(quoteSection).getByLabelText('Your Email')).toHaveValue('planner@example.com')
+    expect(screen.getByLabelText('spaces360 Assistant minimized')).toBeInTheDocument()
+    expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('keeps the quote form untouched when the assistant requests an unavailable date', async () => {
     renderVenuePage()
 
     await waitForVenueTools()
-
-    // Open modal so quote status message and form are visible
-    await openFirstVenueModal(user)
 
     await expect(
       callVenueTool('prepare_quote_request', {

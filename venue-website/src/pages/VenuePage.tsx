@@ -4,6 +4,7 @@ import AgentChat from '../components/AgentChat'
 import ContactSection from '../components/landing/ContactSection'
 import GallerySection from '../components/landing/GallerySection'
 import HeroSection from '../components/landing/HeroSection'
+import QuoteRequestSection from '../components/landing/QuoteRequestSection'
 import SiteFooter from '../components/landing/SiteFooter'
 import SiteHeader from '../components/landing/SiteHeader'
 import VenueDetailsModal from '../components/landing/VenueDetailsModal'
@@ -14,6 +15,7 @@ import {
   pricingSchema,
   quoteRequestSchema,
   roomDetailsSchema,
+  venueSearchSchema,
 } from '../data/agentToolSchemas'
 import { venueSearchResults } from '../data/venueSearchResults'
 import { agentQueryRecorded } from '../features/agent/agentActivitySlice'
@@ -32,6 +34,7 @@ import {
   listAvailableVenues,
   resolveRoomName,
   roomNames,
+  searchVenues,
 } from '../services/venueAvailability'
 import type { AgentToolParams } from '../types/agentTool'
 import type { VenueSearchResult } from '../types/venue'
@@ -53,6 +56,7 @@ export default function VenuePage() {
 
   // Which venue is open in the details modal (null = modal closed)
   const [selectedVenue, setSelectedVenue] = useState<VenueSearchResult | null>(null)
+  const [quoteFormHandoffKey, setQuoteFormHandoffKey] = useState(0)
 
   // Lock body scroll when the modal is open
   useEffect(() => {
@@ -61,6 +65,17 @@ export default function VenuePage() {
       document.body.style.overflow = ''
     }
   }, [selectedVenue])
+
+  useEffect(() => {
+    if (!quoteFormHandoffKey) {
+      return
+    }
+
+    document
+      .getElementById('quote-request-section')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById('homepage-quote-submit')?.focus({ preventScroll: true })
+  }, [quoteFormHandoffKey])
 
   const handleQuoteFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
@@ -110,6 +125,20 @@ export default function VenuePage() {
 
   useAgentTool(
     {
+      name: 'search_venues',
+      description:
+        'Searches venues by guest count, capacity range, date, event type, facilities, amenities, or free-text planning details. Returns exact matches when possible and close suggestions when no venue matches every detail.',
+      schema: venueSearchSchema,
+    },
+    (params) => {
+      const result = searchVenues(params)
+      dispatch(agentQueryRecorded('Searching venues by planning requirements'))
+      return result
+    },
+  )
+
+  useAgentTool(
+    {
       name: 'get_room_details',
       description:
         'Retrieves the capacity, pricing, and equipment details for a specific room at this event venue.',
@@ -133,7 +162,7 @@ export default function VenuePage() {
     {
       name: 'prepare_quote_request',
       description:
-        'Prefills the quote request form only when the requested room is available on the requested date. The user must still click submit.',
+        'Prefills the homepage quote request form only when the requested room is available on the requested date. A successful call minimizes the chat and scrolls the user to the filled form. The user must still click submit.',
       schema: quoteRequestSchema,
     },
     (params) => {
@@ -164,10 +193,13 @@ export default function VenuePage() {
         }),
       )
       dispatch(quoteStatusSet(null))
+      setSelectedVenue(null)
+      setQuoteFormHandoffKey((currentKey) => currentKey + 1)
       return {
         success: true,
         available: true,
-        message: 'Quote request form prepared. The user must click submit to send it.',
+        message:
+          'Homepage quote request form prepared. The user must review it and click submit to send it.',
       }
     },
   )
@@ -246,10 +278,18 @@ export default function VenuePage() {
       {/* 5. Contact section */}
       <ContactSection />
 
-      {/* 6. Footer */}
+      {/* 6. Homepage quote form */}
+      <QuoteRequestSection
+        quoteDraft={quoteDraft}
+        quoteStatus={selectedVenue ? null : quoteStatus}
+        onQuoteFieldChange={handleQuoteFieldChange}
+        onQuoteSubmit={handleQuoteSubmit}
+      />
+
+      {/* 7. Footer */}
       <SiteFooter />
 
-      {/* 7. Venue details modal — renders only when selectedVenue is set */}
+      {/* 8. Venue details modal — renders only when selectedVenue is set */}
       <VenueDetailsModal
         venue={selectedVenue}
         onClose={() => setSelectedVenue(null)}
@@ -260,8 +300,8 @@ export default function VenuePage() {
         onCheckAvailability={handleCheckAvailability}
       />
 
-      {/* 8. Floating AI chat launcher */}
-      <AgentChat />
+      {/* 9. Floating AI chat launcher */}
+      <AgentChat minimizeRequestKey={quoteFormHandoffKey} />
     </>
   )
 }

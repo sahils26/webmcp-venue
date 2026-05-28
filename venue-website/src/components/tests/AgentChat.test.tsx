@@ -11,6 +11,13 @@ function createChatResponse(body: unknown): Response {
   } as unknown as Response
 }
 
+function createChatErrorResponse(body: unknown): Response {
+  return {
+    ok: false,
+    json: vi.fn().mockResolvedValue(body),
+  } as unknown as Response
+}
+
 describe('AgentChat', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -35,7 +42,7 @@ describe('AgentChat', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('clears the legacy auto prompt from saved chat history', async () => {
+  it('starts fresh even when previous chat history exists in localStorage', async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn()
 
@@ -58,6 +65,7 @@ describe('AgentChat', () => {
     await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
 
     expect(fetchMock).not.toHaveBeenCalled()
+    expect(localStorage.getItem('agentChatMessages')).toBeNull()
     expect(
       screen.queryByText("Hi! I'm planning an event and I'd like to explore your venue spaces."),
     ).not.toBeInTheDocument()
@@ -76,6 +84,53 @@ describe('AgentChat', () => {
 
     await user.click(screen.getByRole('button', { name: 'Close chat and reset conversation' }))
     expect(screen.getByRole('button', { name: /spaces360 Assistant/i })).toBeInTheDocument()
+  })
+
+  it('preserves chat history when minimized and clears it when closed', async () => {
+    const user = userEvent.setup()
+
+    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(
+        createChatResponse({
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: 'The Grand Hall is a flexible event space.',
+              },
+            },
+          ],
+        }),
+      ),
+    )
+
+    render(<AgentChat />)
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+    await user.type(
+      screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
+      'Show me the Grand Hall details.',
+    )
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(screen.getByText('Show me the Grand Hall details.')).toBeInTheDocument()
+    expect(await screen.findByText('The Grand Hall is a flexible event space.')).toBeInTheDocument()
+    expect(localStorage.getItem('agentChatMessages')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Minimize chat' }))
+    await user.click(screen.getByRole('button', { name: 'Open chat' }))
+    expect(screen.getByText('Show me the Grand Hall details.')).toBeInTheDocument()
+    expect(screen.getByText('The Grand Hall is a flexible event space.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Close chat and reset conversation' }))
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+    expect(screen.queryByText('Show me the Grand Hall details.')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('The Grand Hall is a flexible event space.'),
+    ).not.toBeInTheDocument()
   })
 
   it('shows a useful error when the chat API key is missing', async () => {
@@ -271,5 +326,34 @@ describe('AgentChat', () => {
     expect(await screen.findByText(/Please share your event date/)).toBeInTheDocument()
     expect(screen.queryByText(/<function=/)).not.toBeInTheDocument()
     expect(screen.queryByText(/get_room_details/)).not.toBeInTheDocument()
+  })
+
+  it('shows a friendly fallback instead of raw provider failed_generation errors', async () => {
+    const user = userEvent.setup()
+
+    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(
+        createChatErrorResponse({
+          error: {
+            message:
+              "Failed to call a function. Please adjust your prompt. See 'failed_generation' for more details.",
+          },
+        }),
+      ),
+    )
+
+    render(<AgentChat />)
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+    await user.type(
+      screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
+      'Can you give me details of the venue which can accomodate around 100 to 150 people?',
+    )
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(await screen.findByText(/guest count, capacity range/)).toBeInTheDocument()
+    expect(screen.queryByText(/failed_generation/i)).not.toBeInTheDocument()
   })
 })

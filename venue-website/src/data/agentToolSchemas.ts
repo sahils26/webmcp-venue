@@ -23,6 +23,69 @@ export const availableVenuesSchema: JsonSchema = {
 }
 
 /**
+ * Schema for search_venues.
+ *
+ * Expected model arguments:
+ * - query/details/eventType: free-text planning context, such as "conference",
+ *   "wedding reception with parking", or "venue for 100 to 150 people".
+ * - guestCount: single expected attendance number.
+ * - minCapacity/maxCapacity: capacity range when the user gives one.
+ * - date: optional requested event date in yyyy-mm-dd format.
+ * - requiredAmenities: optional facilities such as projector, catering, parking,
+ *   wifi, outdoor, or stage.
+ *
+ * Tool response:
+ * - success true with exact matches when all criteria are satisfied.
+ * - success true with closest suggestions when no exact venue exists.
+ * - success false only for invalid dates.
+ */
+export const venueSearchSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    query: {
+      type: 'string',
+      description:
+        'The full user request or free-text planning details, including capacity, event type, facilities, or general requirements.',
+    },
+    details: {
+      type: 'string',
+      description:
+        'Additional event planning details, such as seating, presentation, catering, parking, outdoor, or atmosphere needs.',
+    },
+    eventType: {
+      type: 'string',
+      description:
+        "Event category such as conference, workshop, networking, gala, dinner, reception, wedding, seminar, training, launch, or offsite.",
+    },
+    guestCount: {
+      type: 'number',
+      description:
+        'Single expected attendance number when the user asks for a venue for around N people.',
+    },
+    minCapacity: {
+      type: 'number',
+      description: 'Lower bound of the requested guest capacity range.',
+    },
+    maxCapacity: {
+      type: 'number',
+      description: 'Upper bound of the requested guest capacity range.',
+    },
+    date: {
+      type: 'string',
+      description: 'Optional requested event date in YYYY-MM-DD format.',
+    },
+    requiredAmenities: {
+      type: 'array',
+      description:
+        'Facilities the venue should include. Supported values include projector, catering, parking, wifi, outdoor, and stage.',
+      items: {
+        type: 'string',
+      },
+    },
+  },
+}
+
+/**
  * Schema for get_room_details.
  *
  * Expected model arguments:

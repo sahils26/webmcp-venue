@@ -88,14 +88,16 @@ interface ChatCompletionResponse {
 const MAX_TOOL_STEPS = 8
 const TOOL_SYNTAX_LEAK_FALLBACK =
   'I can help with that. Please share your event date, and I can check which venues are available. If you do not have a date yet, I can show the current venue options and their next available dates.'
+const TOOL_CALL_ERROR_FALLBACK =
+  'I could not match that request cleanly with the venue tools. Please try asking by guest count, capacity range, event type, date, or facilities.'
 const INTERNAL_TOOL_SYNTAX_PATTERNS = [
   /<\/?function\b/i,
   /\bfunction_call\b/i,
   /\btool_calls?\b/i,
-  /\b(call|invoke|use)\s+[`'"]?(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request)\b/i,
-  /\b(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request)\s*\(/i,
+  /\b(call|invoke|use)\s+[`'"]?(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request|search_venues)\b/i,
+  /\b(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request|search_venues)\s*\(/i,
 ]
-const LEGACY_AUTO_PROMPT = "Hi! I'm planning an event and I'd like to explore your venue spaces."
+const LEGACY_STORAGE_KEY = 'agentChatMessages'
 
 /**
  * System guardrails that keep the assistant scoped to venue planning tasks.
@@ -114,7 +116,14 @@ STRICT RULES:
 7. Keep answers concise, professional, and practical.
 8. Every visible answer must be plain English for an event planner. Never mention internal tools, function names, JSON, XML-style tags, code snippets, or that you can "call" a function.
 9. Use tools silently when needed. After receiving tool results, answer the user unless another tool call is strictly necessary.
-10. When a user asks which venues, rooms, or spaces are available, use the available venue-listing tool. If no date is provided, list the venue options with their next available dates and ask for the event date only if they need date-specific availability.`,
+10. When a user asks which venues, rooms, or spaces are available, use the available venue-listing tool. If no date is provided, list the venue options with their next available dates and ask for the event date only if they need date-specific availability.
+11. When a user asks for venues by guest count, capacity range, event type, facilities, atmosphere, or general planning details, use the venue search tool. It can return exact matches or close suggestions.
+12. If the venue search tool says there is no exact match, explain that clearly and then summarize the suggested venues and why they are close.
+13. When a user asks you to fill, prepare, or complete the quote form, collect the room name, event date, and email address. Once all three are known, use the quote request tool and remind the user that they must review the form and click submit.`,
+}
+
+interface AgentChatProps {
+  minimizeRequestKey?: number
 }
 
 /**
@@ -138,49 +147,8 @@ function createMessage(
   }
 }
 
-function isChatMessage(value: unknown): value is ChatMessage {
-  if (typeof value !== 'object' || value === null) {
-    return false
-  }
-
-  const message = value as Partial<ChatMessage>
-
-  return (
-    typeof message.id === 'string' &&
-    (message.role === 'assistant' || message.role === 'user') &&
-    typeof message.content === 'string' &&
-    (message.variant === undefined || message.variant === 'error')
-  )
-}
-
 function isToolArgumentRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function containsLegacyAutoPrompt(messages: ChatMessage[]): boolean {
-  return messages.some((message) => message.role === 'user' && message.content === LEGACY_AUTO_PROMPT)
-}
-
-function loadSavedMessages(): ChatMessage[] {
-  try {
-    const saved = localStorage.getItem('agentChatMessages')
-    if (!saved) return []
-
-    const parsed = JSON.parse(saved) as unknown
-    if (!Array.isArray(parsed) || !parsed.every(isChatMessage)) {
-      localStorage.removeItem('agentChatMessages')
-      return []
-    }
-
-    if (containsLegacyAutoPrompt(parsed)) {
-      localStorage.removeItem('agentChatMessages')
-      return []
-    }
-
-    return parsed
-  } catch {
-    return []
-  }
 }
 
 /**
@@ -252,7 +220,15 @@ async function requestChatCompletion(
  * @returns Safe fallback text for the assistant transcript.
  */
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'The assistant request failed.'
+  if (!(error instanceof Error)) {
+    return 'The assistant request failed.'
+  }
+
+  if (/failed_generation|failed to call a function/i.test(error.message)) {
+    return TOOL_CALL_ERROR_FALLBACK
+  }
+
+  return error.message
 }
 
 function hasInternalToolSyntax(content: string): boolean {
@@ -271,28 +247,24 @@ function getAssistantDisplayContent(content?: string | null): string {
   return hasInternalToolSyntax(displayContent) ? TOOL_SYNTAX_LEAK_FALLBACK : displayContent
 }
 
-export default function AgentChat() {
+export default function AgentChat({ minimizeRequestKey = 0 }: AgentChatProps) {
   const [chatState, setChatState] = useState<ChatState>('closed')
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>(loadSavedMessages)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [toolStatus, setToolStatus] = useState('')
   const abortControllerRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const activeRunIdRef = useRef(0)
+  const handledMinimizeRequestKeyRef = useRef(minimizeRequestKey)
 
-  // Persist messages to localStorage whenever they change
   useEffect(() => {
     try {
-      if (messages.length) {
-        localStorage.setItem('agentChatMessages', JSON.stringify(messages))
-      } else {
-        localStorage.removeItem('agentChatMessages')
-      }
-    } catch (error) {
-      console.error('Failed to save chat messages:', error)
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+    } catch {
+      // Ignore storage errors so the widget can still run in restricted browsers.
     }
-  }, [messages])
+  }, [])
 
   const submitMessage = async (messageText: string) => {
     const trimmedInput = messageText.trim()
@@ -395,6 +367,18 @@ export default function AgentChat() {
     }
   }, [chatState, messages, isLoading, toolStatus])
 
+  useEffect(() => {
+    if (minimizeRequestKey === handledMinimizeRequestKeyRef.current) {
+      return
+    }
+
+    handledMinimizeRequestKeyRef.current = minimizeRequestKey
+
+    if (minimizeRequestKey > 0) {
+      setChatState('minimized')
+    }
+  }, [minimizeRequestKey])
+
   const handleOpen = () => {
     setChatState('open')
   }
@@ -407,7 +391,10 @@ export default function AgentChat() {
     activeRunIdRef.current += 1
     abortControllerRef.current?.abort()
     abortControllerRef.current = null
-    // Just close the chat without clearing messages
+    setMessages([])
+    setInput('')
+    setIsLoading(false)
+    setToolStatus('')
     setChatState('closed')
   }
 

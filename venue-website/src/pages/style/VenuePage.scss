@@ -5,7 +5,7 @@
  *
  * Old two-column layout styles have been removed. This file now only contains
  * styles shared across multiple landing components:
- *   - .quote-form / .quote-status  → used inside VenueDetailsModal
+ *   - .quote-form / .quote-status  → shared by quote sections and modal
  *   - .agent-status                → retained for future use / Redux tracking
  */
 

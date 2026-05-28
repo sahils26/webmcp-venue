@@ -1,0 +1,98 @@
+@use '../../styles/theme';
+
+.quote-section {
+  padding: 84px 24px;
+  scroll-margin-top: 88px;
+  background: #f3f8f7;
+
+  &__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
+    gap: 56px;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  &__copy {
+    max-width: 540px;
+  }
+
+  &__eyebrow {
+    margin: 0 0 14px;
+    color: theme.$theme-color;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin: 0 0 20px;
+    color: theme.$color-heading;
+    font-size: clamp(1.7rem, 2.8vw, 2.35rem);
+    font-weight: 900;
+    line-height: 1.1;
+  }
+
+  &__body {
+    margin: 0;
+    color: theme.$color-ink;
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  &__details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin: 28px 0 0;
+
+    div {
+      padding: 16px;
+      border: 1px solid rgba(theme.$color-ink, 0.1);
+      border-radius: theme.$radius-control;
+      background: rgba(theme.$color-surface, 0.74);
+    }
+
+    dt {
+      margin: 0 0 6px;
+      color: theme.$color-muted;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    dd {
+      margin: 0;
+      color: theme.$color-heading;
+      font-size: 0.94rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+  }
+
+  &__form-panel {
+    @include theme.panel-surface(32px, theme.$color-surface);
+  }
+}
+
+@media (max-width: theme.$breakpoint-mobile) {
+  .quote-section {
+    padding: 58px 16px;
+
+    &__inner {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+
+    &__details {
+      grid-template-columns: 1fr;
+    }
+
+    &__form-panel {
+      padding: 24px;
+    }
+  }
+}
