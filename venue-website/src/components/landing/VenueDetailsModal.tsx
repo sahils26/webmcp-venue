@@ -1,0 +1,249 @@
+import { type ChangeEvent, type FormEvent, useEffect } from 'react'
+import type { QuoteDraft, VenueSearchResult } from '../../types/venue'
+import { formatVenueCurrency } from '../../utils/currency'
+import './VenueDetailsModal.scss'
+
+interface VenueDetailsModalProps {
+  venue: VenueSearchResult | null
+  onClose: () => void
+  quoteDraft: QuoteDraft
+  quoteStatus: string | null
+  onQuoteFieldChange: (event: ChangeEvent<HTMLInputElement>) => void
+  onQuoteSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onCheckAvailability: (venueName: string) => void
+}
+
+export default function VenueDetailsModal({
+  venue,
+  onClose,
+  quoteDraft,
+  quoteStatus,
+  onQuoteFieldChange,
+  onQuoteSubmit,
+  onCheckAvailability,
+}: VenueDetailsModalProps) {
+  // Keyboard handler — Escape closes the modal
+  useEffect(() => {
+    if (!venue) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [venue, onClose])
+
+  if (!venue) return null
+
+  const formattedPrice = formatVenueCurrency(venue.price_per_day)
+
+  return (
+    <div
+      className="venue-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="venue-modal-title"
+    >
+      {/* Backdrop */}
+      <div
+        className="venue-modal__backdrop"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div className="venue-modal__panel">
+        {/* Sticky close button */}
+        <button
+          className="venue-modal__close"
+          type="button"
+          onClick={onClose}
+          aria-label="Close venue details"
+          autoFocus
+        >
+          &times;
+        </button>
+
+        <div className="venue-modal__body">
+          {/* Hero header */}
+          <div className="venue-modal__hero">
+            <div>
+              <h2 id="venue-modal-title" className="venue-modal__title">
+                {venue.name}
+              </h2>
+              <p className="venue-modal__location">
+                <span aria-hidden="true">📍</span> {venue.location}
+              </p>
+            </div>
+            <div className="venue-modal__price-badge" aria-label={`${formattedPrice} per day`}>
+              <span className="venue-modal__price-badge-value">{formattedPrice}</span>
+              <span className="venue-modal__price-badge-label">/ day</span>
+            </div>
+          </div>
+
+          {/* Gallery */}
+          <ul
+            className="venue-modal__gallery"
+            aria-label={`${venue.name} photo gallery`}
+          >
+            {venue.gallery_images.map((img, i) => (
+              <li
+                key={img}
+                className="venue-modal__gallery-item"
+                style={{
+                  background: `linear-gradient(${145 + i * 25}deg, rgba(59,29,96,0.9), rgba(76,29,149,0.55))`,
+                }}
+                aria-label={`${venue.name} — ${img.replace(/\.[^.]+$/, '').replace(/_/g, ' ')}`}
+              >
+                <span className="venue-modal__gallery-label">
+                  {img.replace(/\.[^.]+$/, '').replace(/_/g, ' ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Description */}
+          <section aria-labelledby="modal-about-title" className="venue-modal__section">
+            <h3 id="modal-about-title" className="venue-modal__section-title">About This Space</h3>
+            <p className="venue-modal__description">{venue.description}</p>
+          </section>
+
+          {/* Specs */}
+          <dl className="venue-modal__specs">
+            <div className="venue-modal__spec">
+              <dt>Floor Area</dt>
+              <dd>{venue.dimensions}</dd>
+            </div>
+            <div className="venue-modal__spec">
+              <dt>Capacity</dt>
+              <dd>{venue.capacity} guests</dd>
+            </div>
+            <div className="venue-modal__spec">
+              <dt>Price</dt>
+              <dd>{formattedPrice} / day</dd>
+            </div>
+          </dl>
+
+          {/* Amenities */}
+          <section aria-labelledby="modal-amenities-title" className="venue-modal__section">
+            <h3 id="modal-amenities-title" className="venue-modal__section-title">Amenities</h3>
+            <ul className="venue-modal__amenities">
+              {venue.detailed_amenities.map((amenity) => (
+                <li key={amenity.id} className="venue-modal__amenity">
+                  <span className="venue-modal__amenity-icon" aria-hidden="true">
+                    {amenity.icon}
+                  </span>
+                  {amenity.label}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Available dates */}
+          <section aria-labelledby="modal-dates-title" className="venue-modal__section">
+            <h3 id="modal-dates-title" className="venue-modal__section-title">Available Dates</h3>
+            <ul className="venue-modal__dates">
+              {venue.all_available_dates.map((date) => (
+                <li key={date} className="venue-modal__date">
+                  {new Intl.DateTimeFormat('en-US', {
+                    weekday: 'short',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  }).format(new Date(date + 'T00:00:00'))}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Cancellation policy */}
+          <p className="venue-modal__policy">
+            <strong>Cancellation Policy:</strong> {venue.cancellation_policy}
+          </p>
+
+          {/* Action buttons */}
+          <div className="venue-modal__actions">
+            <button
+              type="button"
+              className="venue-modal__action venue-modal__action--primary"
+              onClick={() => onCheckAvailability(venue.name)}
+            >
+              Check Availability
+            </button>
+            <button
+              type="button"
+              className="venue-modal__action venue-modal__action--outline"
+              onClick={() =>
+                document.getElementById('modal-quote-section')?.scrollIntoView({ behavior: 'smooth' })
+              }
+            >
+              Request a Quote
+            </button>
+          </div>
+
+          {/* Quote form */}
+          <section
+            id="modal-quote-section"
+            aria-labelledby="modal-quote-title"
+            className="venue-modal__section venue-modal__quote-section"
+          >
+            <h3 id="modal-quote-title" className="venue-modal__section-title">
+              Request a Quote
+            </h3>
+            <p className="venue-modal__quote-note">
+              The AI assistant can fill this form automatically. You must click Submit to send.
+            </p>
+
+            <form className="quote-form" onSubmit={onQuoteSubmit}>
+              <label className="quote-form__field" htmlFor="modal-quote-room">
+                <span>Room Name</span>
+                <input
+                  id="modal-quote-room"
+                  type="text"
+                  name="roomName"
+                  value={quoteDraft.roomName}
+                  onChange={onQuoteFieldChange}
+                  required
+                />
+              </label>
+              <label className="quote-form__field" htmlFor="modal-quote-date">
+                <span>Date</span>
+                <input
+                  id="modal-quote-date"
+                  type="date"
+                  name="date"
+                  value={quoteDraft.date}
+                  onChange={onQuoteFieldChange}
+                  required
+                />
+              </label>
+              <label className="quote-form__field" htmlFor="modal-quote-email">
+                <span>Your Email</span>
+                <input
+                  id="modal-quote-email"
+                  type="email"
+                  name="email"
+                  value={quoteDraft.email}
+                  onChange={onQuoteFieldChange}
+                  required
+                />
+              </label>
+              <button className="quote-form__submit" type="submit">
+                Submit Quote Request
+              </button>
+            </form>
+
+            {quoteStatus && (
+              <div className="quote-status" role="status">
+                {quoteStatus}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,118 @@
+@use '../../styles/theme';
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 65px;
+  background: theme.$color-page-bg;
+  border-bottom: 1px solid rgba(theme.$color-ink, 0.1);
+
+  &__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    gap: 24px;
+  }
+
+  &__logo {
+    flex-shrink: 0;
+    color: theme.$theme-color;
+    font-size: 1.3rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-decoration: none;
+
+    &:hover {
+      color: theme.$theme-color-dark;
+    }
+
+    &:focus-visible {
+      @include theme.focus-ring;
+      border-radius: 6px;
+    }
+  }
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__nav-link {
+    padding: 8px 14px;
+    border-radius: theme.$radius-control;
+    color: theme.$color-ink;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+      background: rgba(theme.$theme-color, 0.08);
+      color: theme.$theme-color;
+    }
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
+  }
+
+  &__lang {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  &__lang-btn {
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: theme.$color-muted;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    transition: color 0.15s;
+
+    &:hover {
+      color: theme.$theme-color;
+    }
+
+    &--active {
+      color: theme.$theme-color;
+      font-weight: 900;
+    }
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
+  }
+
+  &__lang-sep {
+    color: rgba(theme.$color-muted, 0.4);
+    font-size: 0.75rem;
+    user-select: none;
+  }
+}
+
+@media (max-width: theme.$breakpoint-mobile) {
+  .site-header {
+    &__nav {
+      display: none;
+    }
+
+    &__lang {
+      margin-left: auto;
+    }
+  }
+}

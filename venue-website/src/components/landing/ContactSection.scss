@@ -1,0 +1,124 @@
+@use '../../styles/theme';
+
+.contact-section {
+  padding: 80px 24px;
+  scroll-margin-top: 80px;
+  background: theme.$color-surface;
+
+  &__inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  &__eyebrow {
+    margin: 0 0 14px;
+    color: theme.$theme-color;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin: 0 0 24px;
+    color: theme.$color-heading;
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+  }
+
+  &__body {
+    margin: 0 0 14px;
+    color: theme.$color-ink;
+    font-size: 0.97rem;
+    line-height: 1.75;
+
+    &:last-of-type {
+      margin-bottom: 0;
+    }
+  }
+
+  &__info {
+    display: grid;
+    gap: 24px;
+    padding: 32px;
+    border: 1px solid rgba(theme.$color-ink, 0.1);
+    border-radius: theme.$radius-panel;
+    background: theme.$color-panel-tint;
+    box-shadow: theme.$shadow-panel;
+  }
+
+  &__info-block {
+    display: grid;
+    gap: 6px;
+  }
+
+  &__info-label {
+    margin: 0;
+    color: theme.$color-muted;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  &__email {
+    color: theme.$theme-color;
+    font-size: 1.2rem;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    word-break: break-all;
+    transition: color 0.15s;
+
+    &:hover {
+      color: theme.$theme-color-dark;
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      @include theme.focus-ring;
+      border-radius: 4px;
+    }
+  }
+
+  &__info-value {
+    margin: 0;
+    color: theme.$color-ink;
+    font-size: 0.97rem;
+    font-weight: 700;
+  }
+
+  &__cta {
+    @include theme.themed-action(48px);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+    transition: background 0.18s;
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
+  }
+}
+
+/* ── Mobile ── */
+@media (max-width: theme.$breakpoint-mobile) {
+  .contact-section {
+    padding: 56px 16px;
+
+    &__inner {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+  }
+}

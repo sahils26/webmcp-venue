@@ -95,6 +95,7 @@ const INTERNAL_TOOL_SYNTAX_PATTERNS = [
   /\b(call|invoke|use)\s+[`'"]?(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request)\b/i,
   /\b(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request)\s*\(/i,
 ]
+const LEGACY_AUTO_PROMPT = "Hi! I'm planning an event and I'd like to explore your venue spaces."
 
 /**
  * System guardrails that keep the assistant scoped to venue planning tasks.
@@ -114,20 +115,6 @@ STRICT RULES:
 8. Every visible answer must be plain English for an event planner. Never mention internal tools, function names, JSON, XML-style tags, code snippets, or that you can "call" a function.
 9. Use tools silently when needed. After receiving tool results, answer the user unless another tool call is strictly necessary.
 10. When a user asks which venues, rooms, or spaces are available, use the available venue-listing tool. If no date is provided, list the venue options with their next available dates and ask for the event date only if they need date-specific availability.`,
-}
-
-/**
- * Creates the first assistant message shown whenever a conversation starts or resets.
- *
- * @returns A new transcript with stable ids for React rendering.
- */
-function createInitialMessages(): ChatMessage[] {
-  return [
-    createMessage(
-      'assistant',
-      'Tell me what kind of event you are planning, and I can check rooms or dates for you.',
-    ),
-  ]
 }
 
 /**
@@ -151,6 +138,51 @@ function createMessage(
   }
 }
 
+function isChatMessage(value: unknown): value is ChatMessage {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const message = value as Partial<ChatMessage>
+
+  return (
+    typeof message.id === 'string' &&
+    (message.role === 'assistant' || message.role === 'user') &&
+    typeof message.content === 'string' &&
+    (message.variant === undefined || message.variant === 'error')
+  )
+}
+
+function isToolArgumentRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function containsLegacyAutoPrompt(messages: ChatMessage[]): boolean {
+  return messages.some((message) => message.role === 'user' && message.content === LEGACY_AUTO_PROMPT)
+}
+
+function loadSavedMessages(): ChatMessage[] {
+  try {
+    const saved = localStorage.getItem('agentChatMessages')
+    if (!saved) return []
+
+    const parsed = JSON.parse(saved) as unknown
+    if (!Array.isArray(parsed) || !parsed.every(isChatMessage)) {
+      localStorage.removeItem('agentChatMessages')
+      return []
+    }
+
+    if (containsLegacyAutoPrompt(parsed)) {
+      localStorage.removeItem('agentChatMessages')
+      return []
+    }
+
+    return parsed
+  } catch {
+    return []
+  }
+}
+
 /**
  * Parses raw JSON arguments returned by the model for a tool call.
  *
@@ -163,7 +195,8 @@ function parseToolArguments(rawArguments?: string): Record<string, unknown> {
   }
 
   try {
-    return JSON.parse(rawArguments)
+    const parsed = JSON.parse(rawArguments) as unknown
+    return isToolArgumentRecord(parsed) ? parsed : {}
   } catch {
     return {}
   }
@@ -238,31 +271,10 @@ function getAssistantDisplayContent(content?: string | null): string {
   return hasInternalToolSyntax(displayContent) ? TOOL_SYNTAX_LEAK_FALLBACK : displayContent
 }
 
-/**
- * Floating assistant widget for room details, availability checks, and quote preparation.
- */
-interface AgentChatProps {
-  /** Optional message from welcome page to auto-submit as first user message. */
-  initialMessage?: string | null
-}
-
-export default function AgentChat({ initialMessage }: AgentChatProps) {
+export default function AgentChat() {
   const [chatState, setChatState] = useState<ChatState>('closed')
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    // If we have an initial message, start fresh (don't load from localStorage)
-    if (initialMessage) {
-      return createInitialMessages()
-    }
-
-    // Otherwise, load messages from localStorage on initial mount
-    try {
-      const saved = localStorage.getItem('agentChatMessages')
-      return saved ? JSON.parse(saved) : createInitialMessages()
-    } catch {
-      return createInitialMessages()
-    }
-  })
+  const [messages, setMessages] = useState<ChatMessage[]>(loadSavedMessages)
   const [isLoading, setIsLoading] = useState(false)
   const [toolStatus, setToolStatus] = useState('')
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -272,24 +284,16 @@ export default function AgentChat({ initialMessage }: AgentChatProps) {
   // Persist messages to localStorage whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem('agentChatMessages', JSON.stringify(messages))
+      if (messages.length) {
+        localStorage.setItem('agentChatMessages', JSON.stringify(messages))
+      } else {
+        localStorage.removeItem('agentChatMessages')
+      }
     } catch (error) {
       console.error('Failed to save chat messages:', error)
     }
   }, [messages])
 
-  // Clear localStorage when coming from welcome page with initial message
-  useEffect(() => {
-    if (initialMessage) {
-      try {
-        localStorage.removeItem('agentChatMessages')
-      } catch (error) {
-        console.error('Failed to clear chat messages:', error)
-      }
-    }
-  }, [initialMessage])
-
-  // Helper function to submit a message (used by both form and initial message effect)
   const submitMessage = async (messageText: string) => {
     const trimmedInput = messageText.trim()
 
@@ -384,18 +388,6 @@ export default function AgentChat({ initialMessage }: AgentChatProps) {
       setToolStatus('')
     }
   }
-
-  // Auto-submit initial message from welcome page
-  useEffect(() => {
-    if (initialMessage && initialMessage.trim()) {
-      setChatState('open')
-      // Use a longer delay to ensure all tools are registered first
-      const timer = setTimeout(() => {
-        submitMessage(initialMessage)
-      }, 100)
-      return () => clearTimeout(timer)
-    }
-  }, [initialMessage])
 
   useEffect(() => {
     if (chatState === 'open') {

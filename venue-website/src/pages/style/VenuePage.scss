@@ -1,241 +1,15 @@
 @use '../../styles/theme';
 
-/* Page shell and hero content. */
-.venue-page {
-  min-height: 100vh;
-  padding: 44px 24px 72px;
-  background:
-    linear-gradient(180deg, #3b1d60 0, #4c1d95 292px, theme.$color-page-bg 292px);
-  color: theme.$color-ink;
+/**
+ * VenuePage.scss
+ *
+ * Old two-column layout styles have been removed. This file now only contains
+ * styles shared across multiple landing components:
+ *   - .quote-form / .quote-status  → used inside VenueDetailsModal
+ *   - .agent-status                → retained for future use / Redux tracking
+ */
 
-  &__hero {
-    width: min(100%, 1180px);
-    margin: 0 auto 28px;
-  }
-
-  &__eyebrow {
-    margin: 0 0 12px;
-    color: #d8b4fe;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0;
-    text-transform: uppercase;
-  }
-
-  &__title {
-    margin: 0;
-    color: #ffffff;
-    font-size: 4rem;
-    line-height: 0.98;
-    letter-spacing: 0;
-  }
-
-  &__description {
-    max-width: 760px;
-    margin: 18px 0 0;
-    color: #ede9fe;
-    font-size: 1.05rem;
-    line-height: 1.7;
-  }
-
-  &__grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 24px;
-    width: min(100%, 1180px);
-    margin: 0 auto;
-  }
-
-  &__primary {
-    display: grid;
-    gap: 24px;
-  }
-
-  &__sidebar {
-    display: grid;
-    align-self: start;
-    gap: 24px;
-  }
-}
-
-/* Shared card-like panels used by the venue page only. */
-.venue-panel {
-  @include theme.panel-surface;
-
-  &--results {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-
-    .venue-panel__header {
-      padding: 20px 22px;
-      border: 1px solid rgba(theme.$theme-color-dark, 0.12);
-      border-radius: 20px;
-      background: theme.$color-surface;
-      box-shadow: theme.$shadow-panel;
-    }
-  }
-
-  &--monitor {
-    background: theme.$color-panel-tint;
-  }
-
-  &--active {
-    border-color: rgba(theme.$theme-color, 0.28);
-    box-shadow: theme.$shadow-panel-active;
-  }
-
-  &--quote {
-    background: theme.$color-quote-tint;
-  }
-
-  &__header {
-    margin-bottom: 18px;
-  }
-
-  &__title {
-    margin: 0;
-    color: theme.$color-heading;
-    font-size: 1.35rem;
-    line-height: 1.2;
-  }
-
-  &__subtitle {
-    margin: 8px 0 0;
-    color: theme.$color-muted;
-    line-height: 1.55;
-  }
-}
-
-/* Venue result list. */
-.venue-result-list {
-  display: grid;
-  gap: 18px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-/* Local room inventory list. */
-.room-list,
-.live-venue-list {
-  display: grid;
-  gap: 16px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.room-card {
-  padding: 18px;
-  border: 1px solid rgba(theme.$color-ink, 0.1);
-  border-radius: theme.$radius-panel;
-  background: theme.$color-card-bg;
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  &__name {
-    margin: 0;
-    color: theme.$color-heading;
-    font-size: 1.1rem;
-  }
-
-  &__capacity {
-    padding: 0.4rem 0.7rem;
-    border-radius: theme.$radius-pill;
-    background: rgba(theme.$theme-color, 0.1);
-    color: theme.$theme-color;
-    font-size: 0.92rem;
-    white-space: nowrap;
-  }
-
-  &__details {
-    display: grid;
-    gap: 14px;
-    margin: 0;
-
-    div {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    dt {
-      color: theme.$color-muted;
-    }
-
-    dd {
-      margin: 0;
-      color: theme.$color-ink;
-      font-weight: 700;
-    }
-  }
-}
-
-/* Optional OpenStreetMap venue results. */
-.live-venue-status {
-  margin: 0;
-  color: theme.$color-muted;
-  line-height: 1.7;
-
-  &--error {
-    color: theme.$color-error;
-  }
-}
-
-.live-venue-list {
-  &__item {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(theme.$color-ink, 0.08);
-
-    &:last-child {
-      border-bottom: 0;
-    }
-
-    span {
-      color: theme.$color-ink;
-      font-weight: 700;
-    }
-
-    small {
-      color: #64748b;
-      text-transform: capitalize;
-    }
-  }
-}
-
-/* Assistant activity status panel. */
-.agent-status {
-  margin: 0;
-  color: theme.$color-muted-strong;
-  line-height: 1.7;
-
-  code {
-    padding: 0.2rem 0.45rem;
-    border-radius: theme.$radius-control;
-    background: rgba(theme.$theme-color, 0.1);
-    color: theme.$theme-color;
-    font-size: 0.95em;
-  }
-
-  &--active {
-    color: theme.$theme-color-dark;
-  }
-}
-
-/* Quote request form controlled by VenuePage state. */
+/* ── Quote request form ── */
 .quote-form {
   display: flex;
   flex-direction: column;
@@ -257,6 +31,7 @@
       background: theme.$color-surface;
       color: theme.$color-ink;
       font: inherit;
+      box-sizing: border-box;
 
       &:focus {
         border-color: theme.$theme-color;
@@ -270,9 +45,14 @@
     @include theme.themed-action;
 
     padding: 0.75rem 1rem;
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
   }
 }
 
+/* ── Quote request status message ── */
 .quote-status {
   margin-top: 16px;
   padding: 10px 12px;
@@ -280,39 +60,25 @@
   border-radius: theme.$radius-control;
   background: theme.$color-success-bg;
   color: theme.$color-success;
+  font-size: 0.9rem;
   line-height: 1.5;
 }
 
-/* Mobile layout adjustments for page-level content. */
-@media (max-width: theme.$breakpoint-mobile) {
-  .venue-page {
-    padding: 34px 16px 56px;
-    background:
-      linear-gradient(180deg, #3b1d60 0, #4c1d95 248px, theme.$color-page-bg 248px);
+/* ── Agent activity status (retained for Redux tracking, not rendered in v2 UI) ── */
+.agent-status {
+  margin: 0;
+  color: theme.$color-muted-strong;
+  line-height: 1.7;
 
-    &__title {
-      font-size: 2.65rem;
-    }
-
-    &__grid {
-      grid-template-columns: 1fr;
-    }
+  code {
+    padding: 0.2rem 0.45rem;
+    border-radius: theme.$radius-control;
+    background: rgba(theme.$theme-color, 0.1);
+    color: theme.$theme-color;
+    font-size: 0.95em;
   }
 
-  .venue-panel--results .venue-panel__header {
-    padding-right: 4px;
-  }
-
-  .room-card {
-    &__header,
-    &__details div {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  }
-
-  .live-venue-list__item {
-    flex-direction: column;
-    align-items: flex-start;
+  &--active {
+    color: theme.$theme-color-dark;
   }
 }

@@ -1,25 +1,13 @@
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { renderWithProviders } from '../../tests/renderWithProviders'
 import { callAgentTool, listAgentTools } from '../../lib/toolRegistry'
+import { renderWithProviders } from '../../tests/renderWithProviders'
 import type { AgentToolParams } from '../../types/agentTool'
 import VenuePage from '../VenuePage'
 
 function renderVenuePage() {
   return renderWithProviders(<VenuePage />)
-}
-
-async function renderActiveVenuePage() {
-  const user = userEvent.setup()
-
-  renderVenuePage()
-
-  await user.type(screen.getByLabelText('Describe your event'), 'I need a venue')
-  await user.click(screen.getByRole('button', { name: 'Start planning' }))
-  await screen.findByRole('heading', { name: 'spaces360 venues' })
-
-  return user
 }
 
 async function waitForVenueTools(): Promise<void> {
@@ -46,66 +34,136 @@ async function callVenueTool(name: string, args: AgentToolParams): Promise<unkno
   return result
 }
 
-function getActiveAgentStatus(): HTMLElement {
-  const status = document.querySelector<HTMLElement>('.agent-status--active')
-
-  expect(status).not.toBeNull()
-
-  return status as HTMLElement
+/**
+ * Opens the first venue's details modal by clicking the first "SEE THE DETAILS" button
+ * and waits for the dialog to appear.
+ */
+async function openFirstVenueModal(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  const detailButtons = await screen.findAllByRole('button', { name: 'SEE THE DETAILS' })
+  await user.click(detailButtons[0])
+  await screen.findByRole('dialog')
 }
 
 describe('VenuePage', () => {
-  it('renders venue search result cards without the parked OSM venue panel', async () => {
-    await renderActiveVenuePage()
+  it('renders venue showcase sections with all venue data immediately (no gate)', () => {
+    renderVenuePage()
 
-    expect(screen.getByRole('heading', { name: 'spaces360 venues' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Available Spaces' })).toBeInTheDocument()
-    expect(screen.getByText('The Grand Hall')).toBeInTheDocument()
+    // Hero is visible without any interaction
+    expect(
+      screen.getByRole('heading', { name: /TURN YOUR EVENT INTO A/i }),
+    ).toBeInTheDocument()
+
+    // All five venue showcase headings are present
+    expect(screen.getByText('THE GRAND HALL')).toBeInTheDocument()
+    expect(screen.getByText('SKYLINE LOFT')).toBeInTheDocument()
+    expect(screen.getByText('ATELIER COURTYARD')).toBeInTheDocument()
+
+    // Venue capacity appears in specs grid
     expect(screen.getByText('150 guests')).toBeInTheDocument()
-    expect(screen.getByText('€1,200')).toBeInTheDocument()
+
+    // Price appears in showcase and gallery (multiple occurrences is fine)
+    expect(screen.getAllByText('€1,200')[0]).toBeInTheDocument()
+
+    // OSM live venue panel is not present
     expect(screen.queryByRole('heading', { name: 'Nearby Live Venues' })).not.toBeInTheDocument()
   })
 
-  it('expands a venue card into the detailed spaces360 layout', async () => {
-    const user = await renderActiveVenuePage()
+  it('opens the venue details modal when SEE THE DETAILS is clicked', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
 
-    await user.click(screen.getAllByRole('button', { name: 'View Details' })[0])
+    await openFirstVenueModal(user)
 
-    expect(screen.getByRole('heading', { name: 'About the Venue' })).toBeInTheDocument()
-    expect(screen.getByText('250 m²')).toBeInTheDocument()
-    expect(screen.getByText('Professional Projector & Screen')).toBeInTheDocument()
-    expect(screen.getByText(/Monday, June 15, 2026/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Close Details' })).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeInTheDocument()
+
+    // All detailed assertions are scoped to the dialog to avoid conflicts
+    // with identical text that appears in the background showcase section.
+    const inDialog = within(dialog)
+    expect(inDialog.getByRole('heading', { name: 'The Grand Hall', level: 2 })).toBeInTheDocument()
+    expect(inDialog.getByText('About This Space')).toBeInTheDocument()
+    expect(inDialog.getByText('250 m²')).toBeInTheDocument()
+    expect(inDialog.getByText('Professional Projector & Screen')).toBeInTheDocument()
+    expect(inDialog.getByRole('button', { name: 'Close venue details' })).toBeInTheDocument()
+  })
+
+  it('closes the venue details modal when the close button is clicked', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
+
+    await openFirstVenueModal(user)
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Close venue details' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('closes the venue details modal when Escape is pressed', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
+
+    await openFirstVenueModal(user)
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('opens the venue details modal from the gallery section', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
+
+    // The gallery section renders "View Details" buttons for each venue
+    const galleryButtons = await screen.findAllByRole('button', { name: 'View Details' })
+    await user.click(galleryButtons[0])
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('submits a quote request for an available room and date', async () => {
-    const user = await renderActiveVenuePage()
+    const user = userEvent.setup()
+    renderVenuePage()
 
+    await openFirstVenueModal(user)
+
+    await user.clear(screen.getByLabelText('Room Name'))
     await user.type(screen.getByLabelText('Room Name'), 'The Grand Hall')
     await user.type(screen.getByLabelText('Date'), '2026-06-15')
     await user.type(screen.getByLabelText('Your Email'), 'planner@example.com')
     await user.click(screen.getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      screen.getByText('Quote requested for The Grand Hall on 2026-06-15 by planner@example.com.'),
+      screen.getByText(
+        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com.',
+      ),
     ).toBeInTheDocument()
   })
 
   it('blocks quote submission when the room is unavailable', async () => {
-    const user = await renderActiveVenuePage()
+    const user = userEvent.setup()
+    renderVenuePage()
 
+    await openFirstVenueModal(user)
+
+    await user.clear(screen.getByLabelText('Room Name'))
     await user.type(screen.getByLabelText('Room Name'), 'The Grand Hall')
     await user.type(screen.getByLabelText('Date'), '2026-05-15')
     await user.type(screen.getByLabelText('Your Email'), 'planner@example.com')
     await user.click(screen.getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      screen.getByText('The Grand Hall is not available on 2026-05-15. Quote request was not sent.'),
+      screen.getByText(
+        'The Grand Hall is not available on 2026-05-15. Quote request was not sent.',
+      ),
     ).toBeInTheDocument()
   })
 
   it('registers a room details tool for the assistant', async () => {
-    await renderActiveVenuePage()
+    renderVenuePage()
 
     await waitForVenueTools()
 
@@ -125,23 +183,16 @@ describe('VenuePage', () => {
         availableDates: ['2026-07-03', '2026-07-10', '2026-07-24'],
       },
     })
-
-    expect(getActiveAgentStatus()).toHaveTextContent(
-      'Latest assistant action: River Conference Suite.',
-    )
   })
 
   it('registers a broad venue listing tool for the assistant', async () => {
-    await renderActiveVenuePage()
+    renderVenuePage()
 
     await waitForVenueTools()
 
     const allVenues = (await callVenueTool('list_available_venues', {})) as { venues: unknown[] }
 
-    expect(allVenues).toMatchObject({
-      success: true,
-      date: '',
-    })
+    expect(allVenues).toMatchObject({ success: true, date: '' })
     expect(allVenues.venues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -159,49 +210,44 @@ describe('VenuePage', () => {
     ).resolves.toMatchObject({
       success: true,
       date: '2026-06-15',
-      venues: [
-        {
-          name: 'The Grand Hall',
-          nextAvailableDate: '2026-06-15',
-        },
-      ],
+      venues: [{ name: 'The Grand Hall', nextAvailableDate: '2026-06-15' }],
     })
-
-    expect(getActiveAgentStatus()).toHaveTextContent('Listing available venues on 2026-06-15')
   })
 
-  it('registers an availability tool for the assistant', async () => {
-    await renderActiveVenuePage()
+  it('handles null model arguments without crashing venue tools', async () => {
+    renderVenuePage()
 
     await waitForVenueTools()
 
     await expect(
-      callVenueTool('check_availability', {
-        roomName: 'Grand Hall',
-        date: '2026-06-15',
-      }),
+      callAgentTool('list_available_venues', null as unknown as AgentToolParams),
+    ).resolves.toMatchObject({
+      success: true,
+      date: '',
+    })
+  })
+
+  it('registers an availability tool for the assistant', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    await expect(
+      callVenueTool('check_availability', { roomName: 'Grand Hall', date: '2026-06-15' }),
     ).resolves.toMatchObject({
       success: true,
       roomName: 'The Grand Hall',
       date: '2026-06-15',
       available: true,
     })
-
-    expect(getActiveAgentStatus()).toHaveTextContent(
-      'Latest assistant action: Checking availability for The Grand Hall on 2026-06-15.',
-    )
   })
 
   it('registers a pricing tool with explicit euro formatting', async () => {
-    await renderActiveVenuePage()
+    renderVenuePage()
 
     await waitForVenueTools()
 
-    await expect(
-      callVenueTool('get_pricing', {
-        roomName: 'Grand Hall',
-      }),
-    ).resolves.toEqual({
+    await expect(callVenueTool('get_pricing', { roomName: 'Grand Hall' })).resolves.toEqual({
       success: true,
       roomName: 'The Grand Hall',
       pricePerDay: 1200,
@@ -212,9 +258,13 @@ describe('VenuePage', () => {
   })
 
   it('lets the assistant prepare the quote form for an available date', async () => {
-    await renderActiveVenuePage()
+    const user = userEvent.setup()
+    renderVenuePage()
 
     await waitForVenueTools()
+
+    // Open modal so the quote form fields are accessible in the DOM
+    await openFirstVenueModal(user)
 
     await expect(
       callVenueTool('prepare_quote_request', {
@@ -222,10 +272,7 @@ describe('VenuePage', () => {
         date: '2026-06-15',
         email: 'planner@example.com',
       }),
-    ).resolves.toMatchObject({
-      success: true,
-      available: true,
-    })
+    ).resolves.toMatchObject({ success: true, available: true })
 
     expect(screen.getByLabelText('Room Name')).toHaveValue('The Grand Hall')
     expect(screen.getByLabelText('Date')).toHaveValue('2026-06-15')
@@ -233,9 +280,13 @@ describe('VenuePage', () => {
   })
 
   it('keeps the quote form untouched when the assistant requests an unavailable date', async () => {
-    await renderActiveVenuePage()
+    const user = userEvent.setup()
+    renderVenuePage()
 
     await waitForVenueTools()
+
+    // Open modal so quote status message and form are visible
+    await openFirstVenueModal(user)
 
     await expect(
       callVenueTool('prepare_quote_request', {
@@ -246,7 +297,8 @@ describe('VenuePage', () => {
     ).resolves.toMatchObject({
       success: false,
       available: false,
-      message: 'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
+      message:
+        'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
     })
 
     expect(screen.getByLabelText('Room Name')).toHaveValue('')

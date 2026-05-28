@@ -1,8 +1,13 @@
-import { type ChangeEvent, type FormEvent, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import AgentChat from '../components/AgentChat'
-import WelcomePage from '../components/WelcomePage'
-import VenueSearchCard from '../components/VenueSearchCard'
+import ContactSection from '../components/landing/ContactSection'
+import GallerySection from '../components/landing/GallerySection'
+import HeroSection from '../components/landing/HeroSection'
+import SiteFooter from '../components/landing/SiteFooter'
+import SiteHeader from '../components/landing/SiteHeader'
+import VenueDetailsModal from '../components/landing/VenueDetailsModal'
+import VenueShowcaseSection from '../components/landing/VenueShowcaseSection'
 import {
   availableVenuesSchema,
   checkAvailabilitySchema,
@@ -11,7 +16,7 @@ import {
   roomDetailsSchema,
 } from '../data/agentToolSchemas'
 import { venueSearchResults } from '../data/venueSearchResults'
-import { agentQueryRecorded, selectLastAgentQuery } from '../features/agent/agentActivitySlice'
+import { agentQueryRecorded } from '../features/agent/agentActivitySlice'
 import {
   isQuoteDraftField,
   quoteDraftFieldChanged,
@@ -25,31 +30,37 @@ import {
   getRoomAvailability,
   getRoomByName,
   listAvailableVenues,
-  roomNames,
   resolveRoomName,
+  roomNames,
 } from '../services/venueAvailability'
 import type { AgentToolParams } from '../types/agentTool'
+import type { VenueSearchResult } from '../types/venue'
 import './style/VenuePage.scss'
 
-function getStringParam(params: AgentToolParams, key: string): string {
-  const value = params[key]
+function getStringParam(params: AgentToolParams | unknown, key: string): string {
+  if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+    return ''
+  }
+
+  const value = (params as Record<string, unknown>)[key]
   return typeof value === 'string' ? value : ''
 }
 
 export default function VenuePage() {
   const dispatch = useAppDispatch()
-  const lastAgentQuery = useAppSelector(selectLastAgentQuery)
   const quoteDraft = useAppSelector(selectQuoteDraft)
   const quoteStatus = useAppSelector(selectQuoteStatus)
 
-  // Welcome page state management
-  const [hasInteracted, setHasInteracted] = useState(false)
-  const [initialMessage, setInitialMessage] = useState<string | null>(null)
+  // Which venue is open in the details modal (null = modal closed)
+  const [selectedVenue, setSelectedVenue] = useState<VenueSearchResult | null>(null)
 
-  const handleWelcomeSubmit = (message: string) => {
-    setInitialMessage(message)
-    setHasInteracted(true)
-  }
+  // Lock body scroll when the modal is open
+  useEffect(() => {
+    document.body.style.overflow = selectedVenue ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [selectedVenue])
 
   const handleQuoteFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
@@ -71,6 +82,17 @@ export default function VenuePage() {
       ),
     )
   }
+
+  /**
+   * Called when the user clicks "Check Availability" inside VenueDetailsModal.
+   * Pre-fills the quote form room name so the AI or user can complete and submit it.
+   */
+  const handleCheckAvailability = (venueName: string) => {
+    dispatch(quoteDraftPrepared({ roomName: venueName, date: '', email: '' }))
+    dispatch(quoteStatusSet(null))
+  }
+
+  // ── Agent tool registrations (unchanged) ──────────────────────────────────
 
   useAgentTool(
     {
@@ -198,122 +220,48 @@ export default function VenuePage() {
     },
   )
 
-  if (!hasInteracted) {
-    return <WelcomePage onSubmit={handleWelcomeSubmit} />
-  }
-
   return (
-    <main className="venue-page">
-      <section className="venue-page__hero">
-        <p className="venue-page__eyebrow">spaces360 prototype</p>
-        <h1 className="venue-page__title">spaces360 venues</h1>
-        <p className="venue-page__description">
-          Find polished event spaces for corporate events, galas, workshops, and client
-          hospitality across central Germany.
-        </p>
-      </section>
+    <>
+      {/* 1. Sticky navigation */}
+      <SiteHeader />
 
-      <div className="venue-page__grid">
-        <div className="venue-page__primary">
-          <section
-            className="venue-panel venue-panel--results"
-            aria-labelledby="available-rooms-title"
-          >
-            <div className="venue-panel__header">
-              <h2 id="available-rooms-title" className="venue-panel__title">
-                Available Spaces
-              </h2>
-              <p className="venue-panel__subtitle">Curated rooms for focused event comparisons.</p>
-            </div>
-            <ul className="venue-result-list">
-              {venueSearchResults.map((venue) => (
-                <li key={venue.id}>
-                  <VenueSearchCard venue={venue} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
+      {/* 2. Full-width hero */}
+      <HeroSection />
 
-        <div className="venue-page__sidebar">
-          <aside
-            className={`venue-panel venue-panel--monitor ${
-              lastAgentQuery ? 'venue-panel--active' : ''
-            }`}
-            aria-live="polite"
-          >
-            <div className="venue-panel__header">
-              <h2 className="venue-panel__title">Agent Activity Monitor</h2>
-              <p className="venue-panel__subtitle">
-                Watch incoming tool calls from the AI assistant.
-              </p>
-            </div>
-            {lastAgentQuery ? (
-              <p className="agent-status agent-status--active">
-                Latest assistant action: <strong>{lastAgentQuery}</strong>.
-              </p>
-            ) : (
-              <p className="agent-status">Waiting for the assistant to check a venue.</p>
-            )}
-          </aside>
+      {/* 3. Sequential venue showcase */}
+      <main id="venues" aria-label="Venue showcase">
+        {venueSearchResults.map((venue, index) => (
+          <VenueShowcaseSection
+            key={venue.id}
+            venue={venue}
+            index={index}
+            onOpenDetails={setSelectedVenue}
+          />
+        ))}
+      </main>
 
-          <section className="venue-panel venue-panel--quote" aria-labelledby="quote-title">
-            <div className="venue-panel__header">
-              <h2 id="quote-title" className="venue-panel__title">
-                Request a Quote
-              </h2>
-              <p className="venue-panel__subtitle">
-                This form is agent-ready. The AI can fill it out, but requires your click to submit.
-              </p>
-            </div>
-            <form className="quote-form" onSubmit={handleQuoteSubmit}>
-              <label className="quote-form__field" htmlFor="quote-room-name">
-                <span>Room Name</span>
-                <input
-                  id="quote-room-name"
-                  type="text"
-                  name="roomName"
-                  value={quoteDraft.roomName}
-                  onChange={handleQuoteFieldChange}
-                  required
-                />
-              </label>
-              <label className="quote-form__field" htmlFor="quote-date">
-                <span>Date</span>
-                <input
-                  id="quote-date"
-                  type="date"
-                  name="date"
-                  value={quoteDraft.date}
-                  onChange={handleQuoteFieldChange}
-                  required
-                />
-              </label>
-              <label className="quote-form__field" htmlFor="quote-email">
-                <span>Your Email</span>
-                <input
-                  id="quote-email"
-                  type="email"
-                  name="email"
-                  value={quoteDraft.email}
-                  onChange={handleQuoteFieldChange}
-                  required
-                />
-              </label>
-              <button className="quote-form__submit" type="submit">
-                Submit Quote Request
-              </button>
-            </form>
-            {quoteStatus && (
-              <div className="quote-status" role="status">
-                {quoteStatus}
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
+      {/* 4. Gallery overview with filter pills */}
+      <GallerySection venues={venueSearchResults} onOpenDetails={setSelectedVenue} />
 
-      <AgentChat initialMessage={initialMessage} />
-    </main>
+      {/* 5. Contact section */}
+      <ContactSection />
+
+      {/* 6. Footer */}
+      <SiteFooter />
+
+      {/* 7. Venue details modal — renders only when selectedVenue is set */}
+      <VenueDetailsModal
+        venue={selectedVenue}
+        onClose={() => setSelectedVenue(null)}
+        quoteDraft={quoteDraft}
+        quoteStatus={quoteStatus}
+        onQuoteFieldChange={handleQuoteFieldChange}
+        onQuoteSubmit={handleQuoteSubmit}
+        onCheckAvailability={handleCheckAvailability}
+      />
+
+      {/* 8. Floating AI chat launcher */}
+      <AgentChat />
+    </>
   )
 }

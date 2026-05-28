@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registerAgentTool } from '../../lib/toolRegistry'
 import AgentChat from '../AgentChat'
 
@@ -12,6 +12,57 @@ function createChatResponse(body: unknown): Response {
 }
 
 describe('AgentChat', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('does not send a default prompt when the widget first loads', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+
+    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AgentChat />)
+
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText("Hi! I'm planning an event and I'd like to explore your venue spaces."),
+    ).not.toBeInTheDocument()
+  })
+
+  it('clears the legacy auto prompt from saved chat history', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+
+    localStorage.setItem(
+      'agentChatMessages',
+      JSON.stringify([
+        {
+          id: 'legacy-auto-prompt',
+          role: 'user',
+          content: "Hi! I'm planning an event and I'd like to explore your venue spaces.",
+        },
+      ]),
+    )
+
+    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AgentChat />)
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText("Hi! I'm planning an event and I'd like to explore your venue spaces."),
+    ).not.toBeInTheDocument()
+  })
+
   it('opens, minimizes, and closes the assistant widget', async () => {
     const user = userEvent.setup()
 
@@ -115,6 +166,74 @@ describe('AgentChat', () => {
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledTimes(2)
     })
+
+    unregister()
+  })
+
+  it('treats null model tool arguments as an empty object', async () => {
+    const user = userEvent.setup()
+    const unregister = registerAgentTool(
+      {
+        name: 'list_available_venues',
+        description: 'Lists available venues.',
+        schema: { type: 'object', properties: {} },
+      },
+      (params) => ({
+        success: true,
+        date: params.date ?? '',
+      }),
+    )
+
+    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          createChatResponse({
+            choices: [
+              {
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'call-1',
+                      function: {
+                        name: 'list_available_venues',
+                        arguments: 'null',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          createChatResponse({
+            choices: [
+              {
+                message: {
+                  role: 'assistant',
+                  content: 'Here are the current venue options.',
+                },
+              },
+            ],
+          }),
+        ),
+    )
+
+    render(<AgentChat />)
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+    await user.type(
+      screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
+      'Which venues are available?',
+    )
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(await screen.findByText('Here are the current venue options.')).toBeInTheDocument()
 
     unregister()
   })

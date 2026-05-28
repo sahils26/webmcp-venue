@@ -1,0 +1,154 @@
+@use '../../styles/theme';
+
+.site-footer {
+  background: theme.$theme-color-dark;
+  color: rgba(#fff, 0.8);
+  padding: 64px 24px 0;
+
+  &__inner {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 48px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-bottom: 48px;
+  }
+
+  /* ── Brand ── */
+  &__brand {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+  }
+
+  &__logo {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+  }
+
+  &__tagline {
+    margin: 0;
+    color: rgba(#fff, 0.6);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  &__mission {
+    margin: 8px 0 0;
+    color: rgba(#fff, 0.55);
+    font-size: 0.88rem;
+    line-height: 1.7;
+  }
+
+  /* ── Columns ── */
+  &__col {
+    display: grid;
+    align-content: start;
+    gap: 16px;
+
+    ul {
+      display: grid;
+      gap: 10px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    a {
+      color: rgba(#fff, 0.72);
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: color 0.15s;
+
+      &:hover {
+        color: #ffffff;
+      }
+
+      &:focus-visible {
+        @include theme.focus-ring($color: #fff);
+        border-radius: 4px;
+      }
+    }
+  }
+
+  &__col-title {
+    margin: 0;
+    color: rgba(#fff, 0.42);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* ── Contact column ── */
+  &__contact {
+    display: grid;
+    gap: 8px;
+  }
+
+  &__contact-email {
+    color: rgba(#fff, 0.85) !important;
+    font-size: 0.95rem !important;
+    font-weight: 900 !important;
+    word-break: break-all;
+  }
+
+  &__contact-hours {
+    margin: 0;
+    color: rgba(#fff, 0.5);
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+
+  /* ── Bottom bar ── */
+  &__bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 0;
+    border-top: 1px solid rgba(#fff, 0.1);
+    flex-wrap: wrap;
+  }
+
+  &__copyright,
+  &__credits {
+    margin: 0;
+    color: rgba(#fff, 0.36);
+    font-size: 0.82rem;
+  }
+}
+
+/* ── Tablet ── */
+@media (max-width: 1023px) {
+  .site-footer {
+    &__inner {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+}
+
+/* ── Mobile ── */
+@media (max-width: theme.$breakpoint-mobile) {
+  .site-footer {
+    padding-top: 48px;
+
+    &__inner {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+
+    &__bottom {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+}
