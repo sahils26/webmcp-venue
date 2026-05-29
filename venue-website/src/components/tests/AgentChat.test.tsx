@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registerAgentTool } from '../../lib/toolRegistry'
 import AgentChat from '../AgentChat'
 
+const STARTER_MESSAGE =
+  'Hi! I can help you compare venue spaces, check room availability for a date, find rooms by guest count or facilities, and prepare a quote request.'
+
 function createChatResponse(body: unknown): Response {
   return {
     ok: true,
@@ -23,7 +26,7 @@ describe('AgentChat', () => {
     localStorage.clear()
   })
 
-  it('does not send a default prompt when the widget first loads', async () => {
+  it('shows a starter assistant message without sending a default prompt', async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn()
 
@@ -37,9 +40,53 @@ describe('AgentChat', () => {
     await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
 
     expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.getByText(STARTER_MESSAGE)).toBeInTheDocument()
     expect(
       screen.queryByText("Hi! I'm planning an event and I'd like to explore your venue spaces."),
     ).not.toBeInTheDocument()
+  })
+
+  it('excludes the starter message from the first model request', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      createChatResponse({
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: 'I can help narrow that down by guest count and facilities.',
+            },
+          },
+        ],
+      }),
+    )
+
+    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AgentChat />)
+
+    await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
+    await user.type(
+      screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
+      'Which rooms fit around 120 people?',
+    )
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(
+      await screen.findByText('I can help narrow that down by guest count and facilities.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(STARTER_MESSAGE)).not.toBeInTheDocument()
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const requestBody = JSON.parse(String(requestInit?.body)) as {
+      messages: Array<{ role: string; content?: string | null }>
+    }
+
+    expect(requestBody.messages).toEqual([
+      expect.objectContaining({ role: 'system' }),
+      { role: 'user', content: 'Which rooms fit around 120 people?' },
+    ])
   })
 
   it('starts fresh even when previous chat history exists in localStorage', async () => {

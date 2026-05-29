@@ -65,10 +65,87 @@
   }
 
   &__lang {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
+  }
+
+  &__lang-notice {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    z-index: 40;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: max-content;
+    max-width: 280px;
+    padding: 12px 14px;
+    border: 1px solid rgba(theme.$theme-color, 0.16);
+    border-radius: theme.$radius-control;
+    background: theme.$color-surface;
+    box-shadow: theme.$shadow-panel;
+    animation: site-header-notice-in 0.18s ease-out;
+
+    /* Little pointer arrow toward the DE button. */
+    &::before {
+      position: absolute;
+      bottom: 100%;
+      right: 18px;
+      width: 12px;
+      height: 12px;
+      border-top: 1px solid rgba(theme.$theme-color, 0.16);
+      border-left: 1px solid rgba(theme.$theme-color, 0.16);
+      background: theme.$color-surface;
+      content: '';
+      transform: translateY(50%) rotate(45deg);
+    }
+  }
+
+  &__lang-notice-icon {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    color: theme.$theme-color;
+  }
+
+  &__lang-notice-text {
+    margin: 0;
+    color: theme.$color-ink;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  &__lang-notice-close {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: theme.$color-muted;
+    cursor: pointer;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      background: rgba(theme.$theme-color, 0.08);
+      color: theme.$theme-color;
+    }
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
   }
 
   &__lang-btn {
@@ -102,6 +179,18 @@
     color: rgba(theme.$color-muted, 0.4);
     font-size: 0.75rem;
     user-select: none;
+  }
+}
+
+@keyframes site-header-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

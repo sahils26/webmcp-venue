@@ -17,7 +17,7 @@ describe('venue availability service', () => {
       id: 'river-conference-suite',
       name: 'River Conference Suite',
       capacity: 120,
-      location: 'Gera',
+      location: 'Jena',
       pricePerDay: 1100,
       currencyCode: 'EUR',
       formattedPricePerDay: '€1,100',
@@ -57,7 +57,7 @@ describe('venue availability service', () => {
       expect.arrayContaining([
         expect.objectContaining({
           name: 'The Grand Hall',
-          location: 'Erfurt',
+          location: 'Jena',
           capacity: 150,
           formattedPricePerDay: '€1,200',
           nextAvailableDate: '2026-06-15',

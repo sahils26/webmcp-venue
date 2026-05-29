@@ -18,7 +18,7 @@ export default function SiteFooter() {
           <p className="site-footer__logo">spaces360</p>
           <p className="site-footer__tagline">Perfect Spaces for Every Moment</p>
           <p className="site-footer__mission">
-            Connecting visionary event planners with extraordinary venues across central Germany.
+            Connecting visionary event planners with extraordinary venues in Jena, Germany.
           </p>
         </div>
 

@@ -21,7 +21,7 @@
       "translations": {
         "en": {
           "name": "The Grand Hall",
-          "location": "Erfurt",
+          "location": "Jena",
           "description": "A historic, high-ceiling hall perfect for large-scale corporate events, networking galas, and presentations. Features premium acoustics, an integrated stage, and flexible seating configurations tailored to your event layout.",
           "cancellation_policy": "Flexible - Free cancellation up to 14 days before the event",
           "compact_amenity_labels": {
@@ -39,7 +39,7 @@
         },
         "de": {
           "name": "Der Große Saal",
-          "location": "Erfurt",
+          "location": "Jena",
           "description": "Ein historischer Saal mit hohen Decken, ideal für große Firmenevents, Networking-Galas und Präsentationen. Er bietet hochwertige Akustik, eine integrierte Bühne und flexible Bestuhlungsvarianten passend zu Ihrem Eventlayout.",
           "cancellation_policy": "Flexibel - Kostenfreie Stornierung bis 14 Tage vor der Veranstaltung",
           "compact_amenity_labels": {
@@ -131,7 +131,7 @@
       "translations": {
         "en": {
           "name": "Atelier Courtyard",
-          "location": "Weimar",
+          "location": "Jena",
           "description": "A warm studio venue built around a private courtyard, ideal for creative briefings, design sprints, intimate receptions, and relaxed team celebrations.",
           "cancellation_policy": "Flexible - Free cancellation up to 14 days before the event",
           "compact_amenity_labels": {
@@ -149,7 +149,7 @@
         },
         "de": {
           "name": "Atelier Innenhof",
-          "location": "Weimar",
+          "location": "Jena",
           "description": "Eine warme Studiofläche rund um einen privaten Innenhof, ideal für kreative Briefings, Design-Sprints, kleine Empfänge und entspannte Teamfeiern.",
           "cancellation_policy": "Flexibel - Kostenfreie Stornierung bis 14 Tage vor der Veranstaltung",
           "compact_amenity_labels": {
@@ -186,7 +186,7 @@
       "translations": {
         "en": {
           "name": "River Conference Suite",
-          "location": "Gera",
+          "location": "Jena",
           "description": "A polished conference suite with river-facing windows, acoustic wall treatment, and divisible meeting zones for leadership summits and multi-track sessions.",
           "cancellation_policy": "Moderate - Free cancellation up to 10 days before the event",
           "compact_amenity_labels": {
@@ -204,7 +204,7 @@
         },
         "de": {
           "name": "River Conference Suite",
-          "location": "Gera",
+          "location": "Jena",
           "description": "Eine hochwertige Konferenzsuite mit Fenstern zum Fluss, akustischer Wandverkleidung und teilbaren Meetingzonen für Leadership-Summits und mehrgleisige Sessions.",
           "cancellation_policy": "Moderat - Kostenfreie Stornierung bis 10 Tage vor der Veranstaltung",
           "compact_amenity_labels": {
@@ -241,7 +241,7 @@
       "translations": {
         "en": {
           "name": "Garden Pavilion",
-          "location": "Eisenach",
+          "location": "Jena",
           "description": "A calm glass pavilion surrounded by landscaped gardens, made for premium dinners, small conferences, founder meetups, and client hospitality events.",
           "cancellation_policy": "Flexible - Free cancellation up to 14 days before the event",
           "compact_amenity_labels": {
@@ -259,7 +259,7 @@
         },
         "de": {
           "name": "Gartenpavillon",
-          "location": "Eisenach",
+          "location": "Jena",
           "description": "Ein ruhiger Glaspavillon inmitten gestalteter Gärten, gemacht für hochwertige Dinner, kleine Konferenzen, Gründer-Meetups und Kundenevents.",
           "cancellation_policy": "Flexibel - Kostenfreie Stornierung bis 14 Tage vor der Veranstaltung",
           "compact_amenity_labels": {

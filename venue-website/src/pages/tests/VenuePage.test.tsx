@@ -79,6 +79,42 @@ describe('VenuePage', () => {
     ).toHaveAttribute('href', '/venues/grand-hall')
   })
 
+  it('filters venue cards by guest count, venue name, and amenities', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
+
+    const guestCountInput = screen.getByLabelText('Number of people')
+    await user.type(guestCountInput, '100')
+
+    let venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(screen.getByText('Showing 2 of 5 curated venues')).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'The Grand Hall' })).toBeInTheDocument()
+    expect(
+      within(venueGrid).getByRole('heading', { name: 'River Conference Suite' }),
+    ).toBeInTheDocument()
+    expect(within(venueGrid).queryByRole('heading', { name: 'Skyline Loft' })).not.toBeInTheDocument()
+
+    await user.clear(guestCountInput)
+    await user.selectOptions(screen.getByLabelText('Venue name'), 'garden-pavilion')
+    await user.click(screen.getByRole('checkbox', { name: 'Outdoor' }))
+
+    venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(within(venueGrid).getByRole('heading', { name: 'Garden Pavilion' })).toBeInTheDocument()
+    expect(within(venueGrid).queryByRole('heading', { name: 'The Grand Hall' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Projector' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('No venues match these filters')
+    expect(screen.queryByRole('list', { name: 'All venues' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Reset filters' }))
+
+    venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(screen.getByText('5 curated venues in Jena, Germany')).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'The Grand Hall' })).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'Garden Pavilion' })).toBeInTheDocument()
+  })
+
   it('cycles venue card carousel images without leaving the venue list', async () => {
     const user = userEvent.setup()
     renderVenuePage()
@@ -86,23 +122,32 @@ describe('VenuePage', () => {
     const venueGrid = screen.getByRole('list', { name: 'All venues' })
     const card = within(venueGrid).getByRole('article', { name: 'The Grand Hall venue card' })
 
-    expect(within(card).getByText('Featured setup')).toBeInTheDocument()
-    expect(within(card).getByText('1 / 4')).toBeInTheDocument()
+    expect(within(card).getByRole('img')).toHaveAttribute(
+      'alt',
+      'The Grand Hall, image 1 of 3',
+    )
+    expect(within(card).getByText('1 / 3')).toBeInTheDocument()
 
     await user.click(
       within(card).getByRole('button', { name: 'Show next image for The Grand Hall' }),
     )
 
-    expect(within(card).getByText('Stage View')).toBeInTheDocument()
-    expect(within(card).getByText('2 / 4')).toBeInTheDocument()
+    expect(within(card).getByRole('img')).toHaveAttribute(
+      'alt',
+      'The Grand Hall, image 2 of 3',
+    )
+    expect(within(card).getByText('2 / 3')).toBeInTheDocument()
     expect(window.location.pathname).toBe('/')
 
     await user.click(
       within(card).getByRole('button', { name: 'Show previous image for The Grand Hall' }),
     )
 
-    expect(within(card).getByText('Featured setup')).toBeInTheDocument()
-    expect(within(card).getByText('1 / 4')).toBeInTheDocument()
+    expect(within(card).getByRole('img')).toHaveAttribute(
+      'alt',
+      'The Grand Hall, image 1 of 3',
+    )
+    expect(within(card).getByText('1 / 3')).toBeInTheDocument()
     expect(window.location.pathname).toBe('/')
   })
 
@@ -168,7 +213,7 @@ describe('VenuePage', () => {
         id: 'river-conference-suite',
         name: 'River Conference Suite',
         capacity: 120,
-        location: 'Gera',
+        location: 'Jena',
         pricePerDay: 1100,
         currencyCode: 'EUR',
         formattedPricePerDay: '€1,100',
@@ -190,7 +235,7 @@ describe('VenuePage', () => {
       expect.arrayContaining([
         expect.objectContaining({
           name: 'The Grand Hall',
-          location: 'Erfurt',
+          location: 'Jena',
           capacity: 150,
           formattedPricePerDay: '€1,200',
           nextAvailableDate: '2026-06-15',

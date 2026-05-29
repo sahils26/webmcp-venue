@@ -90,6 +90,8 @@ const TOOL_SYNTAX_LEAK_FALLBACK =
   'I can help with that. Please share your event date, and I can check which venues are available. If you do not have a date yet, I can show the current venue options and their next available dates.'
 const TOOL_CALL_ERROR_FALLBACK =
   'I could not match that request cleanly with the venue tools. Please try asking by guest count, capacity range, event type, date, or facilities.'
+const STARTER_MESSAGE =
+  'Hi! I can help you compare venue spaces, check room availability for a date, find rooms by guest count or facilities, and prepare a quote request.'
 const INTERNAL_TOOL_SYNTAX_PATTERNS = [
   /<\/?function\b/i,
   /\bfunction_call\b/i,
@@ -526,6 +528,12 @@ export default function AgentChat({ minimizeRequestKey = 0, pageContext }: Agent
         </div>
 
         <div className="agent-chat__messages" aria-live="polite">
+          {messages.length === 0 && !isLoading && (
+            <article className="agent-chat__message agent-chat__message--assistant agent-chat__message--placeholder">
+              <p>{STARTER_MESSAGE}</p>
+            </article>
+          )}
+
           {messages.map((message) => (
             <article
               className={`agent-chat__message agent-chat__message--${message.role} ${
