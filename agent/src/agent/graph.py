@@ -1,6 +1,7 @@
 from pydantic import create_model, Field
 from typing import Any
 from langchain_core.tools import StructuredTool
+from langchain_core.rate_limiters import InMemoryRateLimiter
 from langgraph.prebuilt import create_react_agent
 from langchain_mistralai import ChatMistralAI
 
@@ -56,13 +57,21 @@ def map_webmcp_to_lc_tools(webmcp_client):
 def build_agent(webmcp_client, api_key):
     # mistral-small is struggling with tool reasoning and getting stuck in loops.
     # upgrading to mistral-large-latest for much better tool performance
-    llm = ChatMistralAI(model="mistral-large-latest", mistral_api_key=api_key)
+    rate_limiter = InMemoryRateLimiter(
+        requests_per_second=0.15,  # 1 request every ~7s — conservative for free tier
+        check_every_n_seconds=0.1,
+        max_bucket_size=1,
+    )
+    llm = ChatMistralAI(model="mistral-large-latest", mistral_api_key=api_key, rate_limiter=rate_limiter)
     tools = map_webmcp_to_lc_tools(webmcp_client)
-    system_prompt = """You are the official venue planning assistant for spaces360 and Venue XYZ. Your ONLY job is to help users find event spaces, check availability, and request quotes.
-You have tools to interact with the venue webpage.
-CRITICAL INSTRUCTION: When you call a tool and receive a JSON string with "success": true, DO NOT hallucinate technical difficulties. You MUST read the "venues" list in the JSON and present the venues directly to the user.
-Always format your responses nicely in English for an event planner.
-Use tools silently when needed. After receiving tool results, answer the user based on the tool results."""
+    system_prompt = """You are a venue planning assistant for spaces360. Help users find event spaces, check availability, and get quotes.
+
+RULES:
+1. Call a tool ONCE. Do not call the same tool twice.
+2. After receiving a tool result, immediately answer the user. Do NOT say "technical difficulties".
+3. The tool result is a JSON string. Read the "venues" array and list each venue's name, capacity, and price.
+4. If the JSON contains "success": true, the data is valid — present it directly.
+5. Never call more than 2 tools per user message."""
     
     agent = create_react_agent(llm, tools, prompt=system_prompt)
     return agent
