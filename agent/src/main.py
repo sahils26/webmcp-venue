@@ -60,6 +60,7 @@ def main():
                             pass # We already log this inside webmcp_client
                                 
     finally:
+        import time; time.sleep(1)  # let pending async tasks finish before closing browser
         logger.info("Shutting down browser...")
         client.stop()
 

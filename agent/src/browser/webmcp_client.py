@@ -38,6 +38,8 @@ class WebMCPClient:
 
     def get_tools(self):
         """Returns the list of registered tool schemas."""
+        if not self.page or self.page.is_closed():
+            return []
         return self.page.evaluate("""
             () => {
                 const tools = [];
@@ -54,6 +56,8 @@ class WebMCPClient:
 
     def call_tool(self, name, args):
         """Executes a tool on the webpage."""
+        if not self.page or self.page.is_closed():
+            return f"Error: browser is not running"
         logger.info(f"--> [Browser] Executing WebMCP tool: {name} with args: {args}")
         try:
             result = self.page.evaluate(f"""
