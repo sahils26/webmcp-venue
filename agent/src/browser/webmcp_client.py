@@ -38,6 +38,8 @@ class WebMCPClient:
 
     def get_tools(self):
         """Returns the list of registered tool schemas."""
+        if not self.page or self.page.is_closed():
+            return []
         return self.page.evaluate("""
             () => {
                 const tools = [];
@@ -54,6 +56,8 @@ class WebMCPClient:
 
     def call_tool(self, name, args):
         """Executes a tool on the webpage."""
+        if not self.page or self.page.is_closed():
+            return f"Error: browser is not running"
         logger.info(f"--> [Browser] Executing WebMCP tool: {name} with args: {args}")
         try:
             result = self.page.evaluate(f"""
@@ -64,18 +68,13 @@ class WebMCPClient:
                 }}
             """)
             
-            # Format output as extremely simple text so Mistral doesn't get confused
-            if isinstance(result, dict):
-                output = []
-                for k, v in result.items():
-                    if isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict):
-                        output.append(f"{k}:")
-                        for item in v:
-                            output.append(f"  - {item.get('name', 'Item')}: {str(item)}")
-                    else:
-                        output.append(f"{k}: {v}")
-                return "\n".join(output)
-            return str(result)
+            # Strip verbose date arrays — they flood the LLM context and cause loops
+            if isinstance(result, dict) and 'venues' in result:
+                for venue in result.get('venues', []):
+                    venue.pop('availableDates', None)
+            result_json = json.dumps(result)
+            logger.info(f"<-- [Tool Result] {result_json[:300]}")
+            return result_json
         except Exception as e:
             return f"Error executing tool {name}: {str(e)}"
 
