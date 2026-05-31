@@ -1,0 +1,6 @@
+langchain>=0.2.0
+langgraph>=0.0.40
+langchain-mistralai
+playwright
+python-dotenv
+pydantic

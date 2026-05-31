@@ -1,0 +1,424 @@
+@use '../../styles/theme';
+
+/* Fixed-position shell for the floating assistant widget. */
+.agent-chat-shell {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 40;
+  width: min(390px, calc(100vw - 32px));
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+/* Closed-state launcher button. */
+.agent-chat-launcher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 62px;
+  margin-left: auto;
+  padding: 10px 14px 10px 10px;
+  border: 1px solid rgba(theme.$theme-color, 0.18);
+  border-radius: theme.$radius-pill;
+  background: theme.$color-surface;
+  box-shadow: theme.$shadow-launcher;
+  color: theme.$color-ui-text;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+
+  &:hover {
+    border-color: rgba(theme.$theme-color, 0.34);
+    box-shadow: theme.$shadow-launcher-hover;
+  }
+
+  &__mark {
+    display: grid;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 50%;
+    background: theme.$theme-color;
+    color: theme.$theme-color-contrast;
+    font-size: 0.82rem;
+    font-weight: 900;
+  }
+
+  &__copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  &__title {
+    @include theme.truncate;
+
+    color: theme.$color-ui-text;
+    font-size: 0.95rem;
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  &__status {
+    @include theme.truncate;
+
+    color: #607082;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+}
+
+.agent-chat-launcher:focus-visible,
+.agent-chat__icon-button:focus-visible,
+.agent-chat__minimized-toggle:focus-visible {
+  @include theme.focus-ring($offset: 3px);
+}
+
+/* Chat panel surface and state-specific sizing. */
+.agent-chat {
+  overflow: hidden;
+  border: 1px solid rgba(theme.$color-border-text, 0.16);
+  border-radius: theme.$radius-panel;
+  background: theme.$color-surface;
+  box-shadow: theme.$shadow-chat;
+
+  &--open {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: min(640px, calc(100vh - 40px));
+  }
+
+  &--minimized {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 66px;
+    padding: 10px;
+  }
+
+  &__minimized-toggle {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+  }
+
+  &__minimized-mark {
+    display: grid;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 50%;
+    background: theme.$theme-color;
+    color: theme.$theme-color-contrast;
+    font-size: 0.82rem;
+    font-weight: 900;
+  }
+
+  &__minimized-copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  &__minimized-title {
+    @include theme.truncate;
+
+    color: theme.$color-ui-text;
+    font-size: 0.95rem;
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  &__minimized-status {
+    @include theme.truncate;
+
+    color: #607082;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    padding: 14px;
+    border-bottom: 1px solid rgba(theme.$color-border-text, 0.12);
+    background: theme.$color-surface-soft;
+  }
+
+  &__identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &__mark {
+    display: grid;
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border-radius: 50%;
+    background: theme.$theme-color;
+    color: theme.$theme-color-contrast;
+    font-size: 0.82rem;
+    font-weight: 900;
+  }
+
+  &__eyebrow {
+    margin: 0 0 2px;
+    color: theme.$theme-color;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    @include theme.truncate;
+
+    margin: 0;
+    color: theme.$color-ui-text;
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  &__window-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__status {
+    @include theme.truncate;
+
+    max-width: 110px;
+    padding: 0.32rem 0.5rem;
+    border: 1px solid rgba(theme.$theme-color, 0.2);
+    border-radius: theme.$radius-control;
+    background: rgba(theme.$theme-color, 0.08);
+    color: theme.$theme-color-dark;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  &__icon-button {
+    display: grid;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border: 1px solid rgba(theme.$color-border-text, 0.18);
+    border-radius: theme.$radius-control;
+    background: theme.$color-surface;
+    color: #4d5967;
+    cursor: pointer;
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1;
+
+    &:hover {
+      border-color: rgba(theme.$theme-color, 0.28);
+      background: rgba(theme.$theme-color, 0.08);
+      color: theme.$theme-color-dark;
+    }
+  }
+
+  &__messages {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    padding: 16px 14px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+
+  &__message {
+    display: flex;
+    max-width: 84%;
+
+    p {
+      margin: 0;
+      overflow-wrap: anywhere;
+      padding: 0.7rem 0.85rem;
+      border-radius: theme.$radius-panel;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    &--assistant {
+      align-self: flex-start;
+
+      p {
+        border: 1px solid rgba(theme.$color-border-text, 0.12);
+        background: theme.$color-surface-muted;
+        color: theme.$color-ink;
+      }
+    }
+
+    &--placeholder p {
+      color: #4d5967;
+    }
+
+    &--user {
+      align-self: flex-end;
+
+      p {
+        background: theme.$theme-color;
+        color: theme.$theme-color-contrast;
+      }
+    }
+
+    &--error p {
+      border-color: rgba(#b91c1c, 0.18);
+      background: #fff1f2;
+      color: theme.$color-error;
+    }
+  }
+
+  &__thinking {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 32px;
+    color: #5b6472;
+    font-size: 0.92rem;
+
+    span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: theme.$theme-color;
+      animation: agent-chat-pulse 1s ease-in-out infinite;
+
+      &:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+
+      &:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+    }
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__composer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px 14px 14px;
+    border-top: 1px solid rgba(theme.$color-border-text, 0.12);
+    background: theme.$color-surface-soft;
+
+    textarea {
+      width: 100%;
+      min-height: 48px;
+      max-height: 128px;
+      resize: vertical;
+      padding: 0.72rem 0.8rem;
+      border: 1px solid rgba(theme.$color-border-text, 0.24);
+      border-radius: theme.$radius-control;
+      background: theme.$color-surface;
+      color: theme.$color-ink;
+      font: inherit;
+      line-height: 1.4;
+
+      &:focus {
+        border-color: theme.$theme-color;
+        box-shadow: 0 0 0 3px rgba(theme.$theme-color, 0.14);
+        outline: none;
+      }
+    }
+
+    button {
+      @include theme.themed-action(48px);
+
+      align-self: end;
+      min-width: 76px;
+      padding: 0.75rem 0.9rem;
+    }
+
+    button:disabled,
+    textarea:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+    }
+  }
+}
+
+@keyframes agent-chat-pulse {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+/* Mobile layout adjustments for the floating chat widget. */
+@media (max-width: theme.$breakpoint-mobile) {
+  .agent-chat-shell {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: min(calc(100vw - 24px), 390px);
+  }
+
+  .agent-chat {
+    &--open {
+      height: min(620px, calc(100vh - 24px));
+    }
+
+    &__header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    &__window-actions {
+      width: 100%;
+    }
+
+    &__status {
+      max-width: none;
+      margin-right: auto;
+    }
+
+    &__message {
+      max-width: 92%;
+    }
+
+    &__composer {
+      grid-template-columns: 1fr;
+    }
+  }
+}

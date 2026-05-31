@@ -1,0 +1,97 @@
+@use '../../styles/theme';
+
+/**
+ * VenuePage.scss
+ *
+ * Old two-column layout styles have been removed. This file now only contains
+ * styles shared across multiple landing components:
+ *   - .quote-form / .quote-status  → shared by quote sections and modal
+ *   - .agent-status                → retained for future use / Redux tracking
+ */
+
+/* ── Quote request form ── */
+.quote-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &__field {
+    display: grid;
+    gap: 6px;
+    color: #374151;
+    font-size: 0.95rem;
+    font-weight: 700;
+
+    input {
+      width: 100%;
+      min-height: 42px;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid rgba(theme.$color-border-text, 0.24);
+      border-radius: theme.$radius-control;
+      background: theme.$color-surface;
+      color: theme.$color-ink;
+      font: inherit;
+      box-sizing: border-box;
+
+      &:focus {
+        border-color: theme.$theme-color;
+        box-shadow: 0 0 0 3px rgba(theme.$theme-color, 0.14);
+        outline: none;
+      }
+
+      &:read-only {
+        background: theme.$color-surface-muted;
+        color: theme.$color-muted-strong;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  &__hint {
+    color: theme.$color-muted;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  &__submit {
+    @include theme.themed-action;
+
+    padding: 0.75rem 1rem;
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
+  }
+}
+
+/* ── Quote request status message ── */
+.quote-status {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(theme.$color-success-border, 0.24);
+  border-radius: theme.$radius-control;
+  background: theme.$color-success-bg;
+  color: theme.$color-success;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ── Agent activity status (retained for Redux tracking, not rendered in v2 UI) ── */
+.agent-status {
+  margin: 0;
+  color: theme.$color-muted-strong;
+  line-height: 1.7;
+
+  code {
+    padding: 0.2rem 0.45rem;
+    border-radius: theme.$radius-control;
+    background: rgba(theme.$theme-color, 0.1);
+    color: theme.$theme-color;
+    font-size: 0.95em;
+  }
+
+  &--active {
+    color: theme.$theme-color-dark;
+  }
+}

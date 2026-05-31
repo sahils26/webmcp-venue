@@ -1,0 +1,506 @@
+@use '../../styles/theme';
+
+.gallery-section {
+  padding: 80px 24px;
+  background: theme.$color-page-bg;
+
+  &__inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    gap: 36px;
+  }
+
+  &__heading-row {
+    display: grid;
+    gap: 10px;
+  }
+
+  &__title {
+    margin: 0;
+    color: theme.$color-heading;
+    font-size: 2.25rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.05;
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: theme.$color-muted;
+    font-size: 0.96rem;
+    font-weight: 700;
+  }
+
+  /* ── Filters ── */
+  &__filter-panel {
+    @include theme.panel-surface(20px, theme.$color-surface);
+
+    display: grid;
+    gap: 18px;
+  }
+
+  &__filter-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 0.55fr);
+    gap: 16px;
+  }
+
+  &__field {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+
+    span {
+      color: theme.$color-muted-strong;
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    select,
+    input {
+      width: 100%;
+      min-height: 46px;
+      padding: 0 12px;
+      border: 1px solid rgba(theme.$color-border-text, 0.22);
+      border-radius: theme.$radius-control;
+      background: theme.$color-surface-soft;
+      color: theme.$color-heading;
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+
+      &:focus {
+        border-color: theme.$theme-color;
+        box-shadow: 0 0 0 3px rgba(theme.$theme-color, 0.14);
+        outline: none;
+      }
+    }
+  }
+
+  &__amenity-field {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    margin: 0;
+
+    legend {
+      padding: 0;
+      color: theme.$color-muted-strong;
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+  }
+
+  &__amenity-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  &__amenity-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0.48rem 0.78rem;
+    border: 1px solid rgba(theme.$color-border-text, 0.16);
+    border-radius: theme.$radius-pill;
+    background: theme.$color-surface-soft;
+    color: theme.$color-muted-strong;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 800;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+
+    input {
+      width: 16px;
+      height: 16px;
+      accent-color: theme.$theme-color;
+      cursor: pointer;
+    }
+
+    &:hover {
+      border-color: rgba(theme.$theme-color, 0.34);
+      background: rgba(theme.$theme-color, 0.06);
+      color: theme.$theme-color-dark;
+    }
+
+    &--selected {
+      border-color: rgba(theme.$theme-color, 0.38);
+      background: rgba(theme.$theme-color, 0.1);
+      color: theme.$theme-color-dark;
+    }
+
+    &:focus-within {
+      @include theme.focus-ring;
+    }
+  }
+
+  &__filter-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-top: 2px;
+    flex-wrap: wrap;
+
+    p {
+      margin: 0;
+      color: theme.$color-muted;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    button {
+      min-height: 40px;
+      padding: 0 16px;
+      border: 1px solid rgba(theme.$theme-color, 0.22);
+      border-radius: theme.$radius-control;
+      background: theme.$color-surface;
+      color: theme.$theme-color-dark;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 900;
+
+      &:hover:not(:disabled) {
+        border-color: rgba(theme.$theme-color, 0.38);
+        background: rgba(theme.$theme-color, 0.08);
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.52;
+      }
+
+      &:focus-visible {
+        @include theme.focus-ring;
+      }
+    }
+  }
+
+  /* ── Grid ── */
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  &__empty {
+    display: grid;
+    gap: 8px;
+    padding: 34px 24px;
+    border: 1px dashed rgba(theme.$theme-color, 0.28);
+    border-radius: theme.$radius-panel;
+    background: rgba(theme.$theme-color, 0.05);
+    text-align: center;
+
+    h3 {
+      margin: 0;
+      color: theme.$color-heading;
+      font-size: 1.12rem;
+      font-weight: 900;
+    }
+
+    p {
+      margin: 0;
+      color: theme.$color-muted;
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+  }
+}
+
+/* ── Gallery Card ── */
+.gallery-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid rgba(theme.$color-ink, 0.08);
+  border-radius: theme.$radius-panel;
+  background: theme.$color-surface;
+  box-shadow: theme.$shadow-panel;
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.2s;
+
+  &:hover {
+    box-shadow: theme.$shadow-panel-active;
+    transform: translateY(-3px);
+  }
+
+  &:hover &__image {
+    transform: scale(1.03);
+  }
+
+  &:hover &__carousel-button,
+  &:focus-within &__carousel-button {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+
+  &__carousel {
+    position: relative;
+    overflow: hidden;
+    min-height: 210px;
+    isolation: isolate;
+    background: theme.$theme-color-dark;
+  }
+
+  &__image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 0.32s ease;
+  }
+
+  &__image-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 16px;
+    color: #ffffff;
+    pointer-events: none;
+
+    &::after {
+      position: absolute;
+      inset: auto 0 0;
+      height: 52%;
+      background: linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.68));
+      content: '';
+    }
+  }
+
+  &__image-label {
+    position: relative;
+    z-index: 2;
+    max-width: calc(100% - 76px);
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
+    text-align: right;
+    text-shadow: 0 1px 14px rgba(0, 0, 0, 0.34);
+    text-transform: uppercase;
+  }
+
+  &__carousel-button {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: theme.$radius-pill;
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.28);
+    color: #ffffff;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.9);
+    transition: background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease,
+      transform 0.18s ease;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.85);
+      background: rgba(15, 23, 42, 0.66);
+      transform: translateY(-50%) scale(1.06);
+    }
+
+    &:active {
+      transform: translateY(-50%) scale(0.96);
+    }
+
+    &:focus-visible {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+      @include theme.focus-ring(#ffffff, 2px);
+    }
+
+    &--previous {
+      left: 12px;
+    }
+
+    &--next {
+      right: 12px;
+    }
+
+    /* Touch devices have no hover — keep the controls visible. */
+    @media (hover: none) {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+    }
+  }
+
+  &__carousel-icon {
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+  }
+
+  &__carousel-progress {
+    position: absolute;
+    z-index: 2;
+    bottom: 14px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__carousel-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: theme.$radius-pill;
+    background: rgba(255, 255, 255, 0.46);
+    transition: width 0.2s, background 0.2s;
+
+    &--active {
+      width: 22px;
+      background: #ffffff;
+    }
+  }
+
+  &__image-count {
+    position: absolute;
+    z-index: 2;
+    top: 12px;
+    right: 12px;
+    padding: 5px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: theme.$radius-pill;
+    background: rgba(15, 23, 42, 0.5);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    padding: 20px;
+  }
+
+  &__meta {
+    display: grid;
+    gap: 6px;
+  }
+
+  &__name {
+    margin: 0;
+    color: theme.$color-heading;
+    font-size: 1.05rem;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+
+  &__location {
+    color: theme.$color-muted;
+    font-size: 0.86rem;
+    font-weight: 700;
+  }
+
+  &__details {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__capacity {
+    padding: 4px 12px;
+    border: 1px solid rgba(theme.$theme-color, 0.2);
+    border-radius: theme.$radius-pill;
+    background: rgba(theme.$theme-color, 0.06);
+    color: theme.$theme-color;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  &__price {
+    color: theme.$color-heading;
+    font-size: 0.92rem;
+    font-weight: 900;
+  }
+
+  &__cta {
+    @include theme.themed-action(42px);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: auto;
+    width: 100%;
+    font-size: 0.88rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
+  }
+}
+
+/* ── Mobile ── */
+@media (max-width: 1023px) {
+  .gallery-section__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gallery-section__filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: theme.$breakpoint-mobile) {
+  .gallery-section {
+    padding: 56px 16px;
+  }
+
+  .gallery-section__title {
+    font-size: 1.75rem;
+  }
+
+  .gallery-section__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery-section__filter-panel {
+    padding: 16px;
+  }
+
+  .gallery-card__carousel {
+    min-height: 220px;
+  }
+}

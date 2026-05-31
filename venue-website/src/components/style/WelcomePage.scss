@@ -1,0 +1,414 @@
+@use '../../styles/theme';
+
+// ── Welcome Page Container ────────────────────────────────────────────────────
+.welcome-page {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow: hidden;
+  padding: 20px;
+
+  &__background {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        circle at 20% 50%,
+        rgba(255, 255, 255, 0.1) 0%,
+        transparent 50%
+      );
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        circle at 80% 80%,
+        rgba(255, 255, 255, 0.05) 0%,
+        transparent 50%
+      );
+    }
+  }
+
+  // Animated blobs
+  &__blob {
+    position: absolute;
+    filter: blur(40px);
+    opacity: 0.3;
+    mix-blend-mode: screen;
+
+    &--1 {
+      width: 300px;
+      height: 300px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+      top: -100px;
+      left: -100px;
+      animation: blob-float 8s ease-in-out infinite;
+    }
+
+    &--2 {
+      width: 250px;
+      height: 250px;
+      background: rgba(100, 200, 255, 0.15);
+      border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+      top: 50%;
+      right: -50px;
+      animation: blob-float 10s ease-in-out infinite reverse;
+    }
+
+    &--3 {
+      width: 200px;
+      height: 200px;
+      background: rgba(200, 100, 255, 0.15);
+      border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+      bottom: -50px;
+      left: 10%;
+      animation: blob-float 12s ease-in-out infinite;
+    }
+  }
+
+  @keyframes blob-float {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+  }
+
+  // Main content wrapper
+  &__content {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 600px;
+    animation: fade-in-up 0.8s ease-out;
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  // Container for content alignment
+  &__container {
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+  }
+
+  // ── Header Section ────────────────────────────────────────────────────────
+  &__header {
+    text-align: center;
+    animation: slide-down 0.8s ease-out 0.2s both;
+  }
+
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  &__logo-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  &__logo {
+    width: 90px;
+    height: 90px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: white;
+    letter-spacing: -2px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+
+  &__title {
+    margin: 0 0 8px;
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: white;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: 1.3rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  // ── Introduction Section ──────────────────────────────────────────────────
+  &__intro {
+    text-align: center;
+    animation: fade-in 0.8s ease-out 0.4s both;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  &__intro-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  &__intro-title {
+    margin: 0 0 16px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.01em;
+  }
+
+  &__intro-description {
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.75);
+    max-width: 550px;
+    margin: 0 auto;
+  }
+
+  // ── Features Grid ─────────────────────────────────────────────────────────
+  &__features {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    animation: fade-in 0.8s ease-out 0.6s both;
+  }
+
+  &__feature {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__feature-icon {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+    transition: all 0.3s ease;
+  }
+
+  &__feature:hover &__feature-icon {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+  }
+
+  &__feature-text {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+  }
+
+  // ── Form Section ──────────────────────────────────────────────────────────
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: fade-in 0.8s ease-out 0.8s both;
+  }
+
+  &__composer {
+    display: flex;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 18px;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  &__input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 1.05rem;
+    color: #333;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+
+    &::placeholder {
+      color: #999;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__submit {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 1.05rem;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &--loading {
+      opacity: 0.8;
+    }
+  }
+
+  &__submit-text {
+    display: inline;
+  }
+
+  &__submit-icon {
+    display: inline;
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+  }
+
+  // ── Footer Section ────────────────────────────────────────────────────────
+  &__footer {
+    text-align: center;
+    animation: fade-in 0.8s ease-out 1s both;
+  }
+
+  &__footer-text {
+    margin: 0;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 0.05em;
+  }
+}
+
+// ── Mobile Responsive Adjustments ─────────────────────────────────────────
+@media (max-width: 640px) {
+  .welcome-page {
+    padding: 16px;
+
+    &__container {
+      gap: 32px;
+    }
+
+    &__logo {
+      width: 64px;
+      height: 64px;
+      font-size: 1.8rem;
+    }
+
+    &__title {
+      font-size: 2.2rem;
+    }
+
+    &__intro-title {
+      font-size: 1.25rem;
+    }
+
+    &__intro-description {
+      font-size: 0.95rem;
+    }
+
+    &__features {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    &__feature {
+      flex-direction: row;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    &__feature-icon {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+    }
+
+    &__feature-text {
+      text-align: left;
+      margin-top: 4px;
+    }
+
+    &__composer {
+      flex-direction: column;
+      padding: 12px;
+    }
+
+    &__submit {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}

@@ -1,0 +1,281 @@
+{
+  "default_locale": "en",
+  "supported_locales": ["en", "de"],
+  "venues": [
+    {
+      "id": "grand-hall",
+      "capacity": 150,
+      "price_per_day": 1200,
+      "thumbnail_url": "placeholder_thumb.jpg",
+      "top_amenities": ["projector", "catering", "parking"],
+      "next_available_date": "2026-06-15",
+      "detailed_amenities": [
+        { "id": "projector", "icon": "📽️" },
+        { "id": "catering", "icon": "🍽️" },
+        { "id": "parking", "icon": "🚗" },
+        { "id": "wifi", "icon": "⚡" }
+      ],
+      "all_available_dates": ["2026-06-15", "2026-06-20", "2026-07-02"],
+      "gallery_images": ["stage_view.jpg", "seating_layout.jpg", "entrance.jpg"],
+      "dimensions": "250 m²",
+      "translations": {
+        "en": {
+          "name": "The Grand Hall",
+          "location": "Jena",
+          "description": "A historic, high-ceiling hall perfect for large-scale corporate events, networking galas, and presentations. Features premium acoustics, an integrated stage, and flexible seating configurations tailored to your event layout.",
+          "cancellation_policy": "Flexible - Free cancellation up to 14 days before the event",
+          "compact_amenity_labels": {
+            "projector": "Projector",
+            "catering": "Catering",
+            "parking": "Parking",
+            "wifi": "Wi-Fi"
+          },
+          "detailed_amenity_labels": {
+            "projector": "Professional Projector & Screen",
+            "catering": "Full On-site Catering Services",
+            "parking": "Secured Underground Parking",
+            "wifi": "High-Speed Gigabit Wi-Fi"
+          }
+        },
+        "de": {
+          "name": "Der Große Saal",
+          "location": "Jena",
+          "description": "Ein historischer Saal mit hohen Decken, ideal für große Firmenevents, Networking-Galas und Präsentationen. Er bietet hochwertige Akustik, eine integrierte Bühne und flexible Bestuhlungsvarianten passend zu Ihrem Eventlayout.",
+          "cancellation_policy": "Flexibel - Kostenfreie Stornierung bis 14 Tage vor der Veranstaltung",
+          "compact_amenity_labels": {
+            "projector": "Projektor",
+            "catering": "Catering",
+            "parking": "Parken",
+            "wifi": "WLAN"
+          },
+          "detailed_amenity_labels": {
+            "projector": "Professioneller Projektor & Leinwand",
+            "catering": "Umfassender Catering-Service vor Ort",
+            "parking": "Gesicherte Tiefgarage",
+            "wifi": "High-Speed-Gigabit-WLAN"
+          }
+        }
+      }
+    },
+    {
+      "id": "skyline-loft",
+      "capacity": 90,
+      "price_per_day": 980,
+      "thumbnail_url": "skyline_loft_thumb.jpg",
+      "top_amenities": ["wifi", "projector", "catering"],
+      "next_available_date": "2026-06-18",
+      "detailed_amenities": [
+        { "id": "wifi", "icon": "⚡" },
+        { "id": "projector", "icon": "📽️" },
+        { "id": "catering", "icon": "🍽️" },
+        { "id": "stage", "icon": "🎤" }
+      ],
+      "all_available_dates": ["2026-06-18", "2026-06-25", "2026-07-09"],
+      "gallery_images": ["loft_windows.jpg", "breakout_area.jpg", "evening_setup.jpg"],
+      "dimensions": "185 m²",
+      "translations": {
+        "en": {
+          "name": "Skyline Loft",
+          "location": "Jena",
+          "description": "A bright upper-floor loft with panoramic city views, soft lounge zones, and a modular presentation setup for product launches, workshops, and executive offsites.",
+          "cancellation_policy": "Moderate - Free cancellation up to 10 days before the event",
+          "compact_amenity_labels": {
+            "wifi": "Wi-Fi",
+            "projector": "Projector",
+            "catering": "Catering",
+            "stage": "Stage"
+          },
+          "detailed_amenity_labels": {
+            "wifi": "High-Speed Gigabit Wi-Fi",
+            "projector": "Laser Projector & Wireless Screen Sharing",
+            "catering": "Seasonal Buffet & Bar Service",
+            "stage": "Compact Speaker Stage"
+          }
+        },
+        "de": {
+          "name": "Skyline Loft",
+          "location": "Jena",
+          "description": "Ein helles Loft in der oberen Etage mit Panoramablick über die Stadt, weichen Lounge-Zonen und einem modularen Präsentationssetup für Produktlaunches, Workshops und Executive-Offsites.",
+          "cancellation_policy": "Moderat - Kostenfreie Stornierung bis 10 Tage vor der Veranstaltung",
+          "compact_amenity_labels": {
+            "wifi": "WLAN",
+            "projector": "Projektor",
+            "catering": "Catering",
+            "stage": "Bühne"
+          },
+          "detailed_amenity_labels": {
+            "wifi": "High-Speed-Gigabit-WLAN",
+            "projector": "Laserprojektor & kabellose Bildschirmübertragung",
+            "catering": "Saisonales Buffet & Barservice",
+            "stage": "Kompakte Sprecherbühne"
+          }
+        }
+      }
+    },
+    {
+      "id": "atelier-courtyard",
+      "capacity": 70,
+      "price_per_day": 760,
+      "thumbnail_url": "atelier_courtyard_thumb.jpg",
+      "top_amenities": ["catering", "parking", "wifi"],
+      "next_available_date": "2026-06-22",
+      "detailed_amenities": [
+        { "id": "catering", "icon": "🍽️" },
+        { "id": "parking", "icon": "🚗" },
+        { "id": "wifi", "icon": "⚡" },
+        { "id": "outdoor", "icon": "🌿" }
+      ],
+      "all_available_dates": ["2026-06-22", "2026-07-01", "2026-07-15"],
+      "gallery_images": ["courtyard.jpg", "studio_tables.jpg", "reception_corner.jpg"],
+      "dimensions": "140 m²",
+      "translations": {
+        "en": {
+          "name": "Atelier Courtyard",
+          "location": "Jena",
+          "description": "A warm studio venue built around a private courtyard, ideal for creative briefings, design sprints, intimate receptions, and relaxed team celebrations.",
+          "cancellation_policy": "Flexible - Free cancellation up to 14 days before the event",
+          "compact_amenity_labels": {
+            "catering": "Catering",
+            "parking": "Parking",
+            "wifi": "Wi-Fi",
+            "outdoor": "Outdoor"
+          },
+          "detailed_amenity_labels": {
+            "catering": "Local Catering Partners",
+            "parking": "Reserved Guest Parking",
+            "wifi": "Reliable Wi-Fi Throughout",
+            "outdoor": "Private Courtyard Access"
+          }
+        },
+        "de": {
+          "name": "Atelier Innenhof",
+          "location": "Jena",
+          "description": "Eine warme Studiofläche rund um einen privaten Innenhof, ideal für kreative Briefings, Design-Sprints, kleine Empfänge und entspannte Teamfeiern.",
+          "cancellation_policy": "Flexibel - Kostenfreie Stornierung bis 14 Tage vor der Veranstaltung",
+          "compact_amenity_labels": {
+            "catering": "Catering",
+            "parking": "Parken",
+            "wifi": "WLAN",
+            "outdoor": "Außenbereich"
+          },
+          "detailed_amenity_labels": {
+            "catering": "Lokale Catering-Partner",
+            "parking": "Reservierte Gästeparkplätze",
+            "wifi": "Zuverlässiges WLAN im gesamten Bereich",
+            "outdoor": "Zugang zum privaten Innenhof"
+          }
+        }
+      }
+    },
+    {
+      "id": "river-conference-suite",
+      "capacity": 120,
+      "price_per_day": 1100,
+      "thumbnail_url": "river_suite_thumb.jpg",
+      "top_amenities": ["projector", "wifi", "parking"],
+      "next_available_date": "2026-07-03",
+      "detailed_amenities": [
+        { "id": "projector", "icon": "📽️" },
+        { "id": "wifi", "icon": "⚡" },
+        { "id": "parking", "icon": "🚗" },
+        { "id": "catering", "icon": "🍽️" }
+      ],
+      "all_available_dates": ["2026-07-03", "2026-07-10", "2026-07-24"],
+      "gallery_images": ["river_view.jpg", "conference_tables.jpg", "foyer.jpg"],
+      "dimensions": "210 m²",
+      "translations": {
+        "en": {
+          "name": "River Conference Suite",
+          "location": "Jena",
+          "description": "A polished conference suite with river-facing windows, acoustic wall treatment, and divisible meeting zones for leadership summits and multi-track sessions.",
+          "cancellation_policy": "Moderate - Free cancellation up to 10 days before the event",
+          "compact_amenity_labels": {
+            "projector": "Projector",
+            "wifi": "Wi-Fi",
+            "parking": "Parking",
+            "catering": "Catering"
+          },
+          "detailed_amenity_labels": {
+            "projector": "Dual Presentation Screens",
+            "wifi": "Dedicated Event Network",
+            "parking": "On-site Garage Access",
+            "catering": "Coffee Bar & Lunch Packages"
+          }
+        },
+        "de": {
+          "name": "River Conference Suite",
+          "location": "Jena",
+          "description": "Eine hochwertige Konferenzsuite mit Fenstern zum Fluss, akustischer Wandverkleidung und teilbaren Meetingzonen für Leadership-Summits und mehrgleisige Sessions.",
+          "cancellation_policy": "Moderat - Kostenfreie Stornierung bis 10 Tage vor der Veranstaltung",
+          "compact_amenity_labels": {
+            "projector": "Projektor",
+            "wifi": "WLAN",
+            "parking": "Parken",
+            "catering": "Catering"
+          },
+          "detailed_amenity_labels": {
+            "projector": "Zwei Präsentationsbildschirme",
+            "wifi": "Dediziertes Event-Netzwerk",
+            "parking": "Zugang zur hauseigenen Garage",
+            "catering": "Kaffeebar & Lunch-Pakete"
+          }
+        }
+      }
+    },
+    {
+      "id": "garden-pavilion",
+      "capacity": 60,
+      "price_per_day": 690,
+      "thumbnail_url": "garden_pavilion_thumb.jpg",
+      "top_amenities": ["catering", "wifi", "parking"],
+      "next_available_date": "2026-07-08",
+      "detailed_amenities": [
+        { "id": "catering", "icon": "🍽️" },
+        { "id": "wifi", "icon": "⚡" },
+        { "id": "parking", "icon": "🚗" },
+        { "id": "outdoor", "icon": "🌿" }
+      ],
+      "all_available_dates": ["2026-07-08", "2026-07-17", "2026-08-04"],
+      "gallery_images": ["pavilion_glass.jpg", "garden_dinner.jpg", "terrace.jpg"],
+      "dimensions": "125 m²",
+      "translations": {
+        "en": {
+          "name": "Garden Pavilion",
+          "location": "Jena",
+          "description": "A calm glass pavilion surrounded by landscaped gardens, made for premium dinners, small conferences, founder meetups, and client hospitality events.",
+          "cancellation_policy": "Flexible - Free cancellation up to 14 days before the event",
+          "compact_amenity_labels": {
+            "catering": "Catering",
+            "wifi": "Wi-Fi",
+            "parking": "Parking",
+            "outdoor": "Outdoor"
+          },
+          "detailed_amenity_labels": {
+            "catering": "Plated Dinner & Reception Menus",
+            "wifi": "Indoor and Garden Wi-Fi Coverage",
+            "parking": "Guest Parking with EV Spots",
+            "outdoor": "Garden Terrace Included"
+          }
+        },
+        "de": {
+          "name": "Gartenpavillon",
+          "location": "Jena",
+          "description": "Ein ruhiger Glaspavillon inmitten gestalteter Gärten, gemacht für hochwertige Dinner, kleine Konferenzen, Gründer-Meetups und Kundenevents.",
+          "cancellation_policy": "Flexibel - Kostenfreie Stornierung bis 14 Tage vor der Veranstaltung",
+          "compact_amenity_labels": {
+            "catering": "Catering",
+            "wifi": "WLAN",
+            "parking": "Parken",
+            "outdoor": "Außenbereich"
+          },
+          "detailed_amenity_labels": {
+            "catering": "Dinner-Menüs & Empfangsangebote",
+            "wifi": "WLAN-Abdeckung innen und im Garten",
+            "parking": "Gästeparkplätze mit Ladepunkten",
+            "outdoor": "Gartenterrasse inklusive"
+          }
+        }
+      }
+    }
+  ]
+}

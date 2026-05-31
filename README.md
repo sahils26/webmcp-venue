@@ -23,7 +23,7 @@ Instead of fragile HTML scraping or complex browser automation, the venue websit
 
 | Component | Technology |
 |-----------|------------|
-| **Venue Website** | React + TypeScript + Vite |
+| **Venue Website** | React + TypeScript + Vite + SCSS |
 | **WebMCP Integration** | `navigator.modelContext` (Chrome 146+ Beta) |
 | **AI Agent** | Python + LangGraph + LangChain |
 | **LLM** | Anthropic Claude Sonnet 4 |
@@ -142,7 +142,6 @@ This is a research prototype. Issues and PRs welcome for:
 - [Chrome Setup Guide](docs/setup-guide.md)
 
 ---
-
 
 
 

@@ -1,0 +1,319 @@
+@use '../../styles/theme';
+
+.venue-detail {
+  min-height: 100vh;
+  background: theme.$color-surface;
+
+  &__hero {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
+    gap: 48px;
+    align-items: stretch;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 24px 64px;
+  }
+
+  &__hero-media {
+    position: relative;
+    min-height: 520px;
+    border-radius: theme.$radius-panel;
+    background: theme.$color-page-bg;
+    overflow: hidden;
+  }
+
+  &__hero-image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  &__hero-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  &__back-link {
+    width: fit-content;
+    color: theme.$theme-color;
+    font-size: 0.84rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    text-transform: uppercase;
+
+    &:hover {
+      color: theme.$theme-color-dark;
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      @include theme.focus-ring;
+      border-radius: 4px;
+    }
+  }
+
+  &__eyebrow {
+    margin: 0;
+    color: theme.$theme-color;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin: 0;
+    color: theme.$color-heading;
+    font-size: clamp(2.4rem, 5vw, 4.8rem);
+    font-weight: 900;
+    line-height: 0.98;
+  }
+
+  &__intro {
+    max-width: 680px;
+    margin: 0;
+    color: theme.$color-ink;
+    font-size: 1.04rem;
+    line-height: 1.8;
+  }
+
+  &__quick-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin: 10px 0 0;
+
+    div {
+      padding: 18px;
+      border: 1px solid rgba(theme.$color-ink, 0.1);
+      border-radius: theme.$radius-control;
+      background: theme.$color-surface-muted;
+    }
+
+    dt {
+      margin: 0 0 6px;
+      color: theme.$color-muted;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    dd {
+      margin: 0;
+      color: theme.$color-heading;
+      font-weight: 900;
+      line-height: 1.35;
+    }
+  }
+
+  &__section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 56px 24px;
+    border-top: 1px solid rgba(theme.$color-ink, 0.08);
+
+    &--split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+      gap: 40px;
+      align-items: start;
+    }
+  }
+
+  &__section-heading {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  &__section-title {
+    margin: 0;
+    color: theme.$color-heading;
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    font-weight: 900;
+    line-height: 1.12;
+  }
+
+  &__amenities {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  &__amenity {
+    display: grid;
+    gap: 10px;
+    min-height: 126px;
+    padding: 18px;
+    border: 1px solid rgba(theme.$color-ink, 0.1);
+    border-radius: theme.$radius-control;
+    background: theme.$color-panel-tint;
+    color: theme.$color-ink;
+    font-weight: 800;
+  }
+
+  &__amenity-icon {
+    font-size: 1.5rem;
+  }
+
+  &__gallery {
+    display: grid;
+    grid-template-columns: 1.2fr 0.9fr 0.9fr;
+    gap: 16px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  &__gallery-item {
+    position: relative;
+    min-height: 220px;
+    border-radius: theme.$radius-panel;
+    background: theme.$color-page-bg;
+    overflow: hidden;
+
+    &:first-child {
+      min-height: 320px;
+    }
+  }
+
+  &__gallery-image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  &__dates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 0;
+    margin: 24px 0 0;
+    list-style: none;
+
+    li {
+      padding: 10px 16px;
+      border: 1px solid rgba(theme.$color-ink, 0.12);
+      border-radius: theme.$radius-control;
+      background: theme.$color-surface-muted;
+      color: theme.$color-ink;
+      font-weight: 800;
+    }
+  }
+
+  &__booking-panel {
+    @include theme.panel-surface(26px, theme.$color-quote-tint);
+  }
+
+  &__panel-label {
+    margin: 0 0 8px;
+    color: theme.$color-muted;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  &__panel-date {
+    margin: 0 0 18px;
+    color: theme.$color-heading;
+    font-size: 1.4rem;
+    font-weight: 900;
+    line-height: 1.15;
+  }
+
+  &__policy {
+    margin: 0 0 22px;
+    color: theme.$color-ink;
+    line-height: 1.65;
+  }
+
+  &__quote-form {
+    padding-top: 22px;
+    border-top: 1px solid rgba(theme.$color-ink, 0.1);
+  }
+
+  &__quote-title {
+    margin: 0 0 16px;
+    color: theme.$color-heading;
+    font-size: 1.1rem;
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  &__primary-action {
+    @include theme.themed-action(48px);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 180px;
+    padding: 0 22px;
+    text-decoration: none;
+  }
+
+  &--missing {
+    display: grid;
+    place-items: center;
+    min-height: calc(100vh - 65px);
+    padding: 48px 24px;
+  }
+
+  &__missing {
+    max-width: 620px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 1023px) {
+  .venue-detail {
+    &__hero {
+      grid-template-columns: 1fr;
+    }
+
+    &__hero-media {
+      min-height: 360px;
+    }
+
+    &__amenities {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}
+
+@media (max-width: theme.$breakpoint-mobile) {
+  .venue-detail {
+    &__hero,
+    &__section {
+      padding-right: 16px;
+      padding-left: 16px;
+    }
+
+    &__quick-facts,
+    &__section--split,
+    &__amenities,
+    &__gallery {
+      grid-template-columns: 1fr;
+    }
+
+    &__gallery-item,
+    &__gallery-item:first-child {
+      min-height: 180px;
+    }
+  }
+}

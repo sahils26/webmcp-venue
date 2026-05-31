@@ -1,0 +1,264 @@
+@use '../../styles/theme';
+
+.venue-showcase {
+  padding: 72px 24px;
+  scroll-margin-top: 80px;
+  border-bottom: 1px solid rgba(theme.$color-ink, 0.07);
+  background: theme.$color-surface;
+
+  &:nth-child(even) {
+    background: theme.$color-page-bg;
+  }
+
+  &__inner {
+    display: grid;
+    gap: 36px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* ── Header row ── */
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  &__title-group {
+    display: grid;
+    gap: 10px;
+  }
+
+  &__name {
+    margin: 0;
+    color: theme.$color-heading;
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  &__location,
+  &__capacity {
+    color: theme.$color-muted;
+    font-size: 0.92rem;
+    font-weight: 700;
+  }
+
+  &__location {
+    color: theme.$color-muted;
+  }
+
+  &__capacity {
+    padding: 4px 12px;
+    border: 1px solid rgba(theme.$theme-color, 0.2);
+    border-radius: theme.$radius-pill;
+    background: rgba(theme.$theme-color, 0.06);
+    color: theme.$theme-color;
+  }
+
+  /* ── Price badge (top-right) ── */
+  &__price-badge {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 12px 20px;
+    border: 1px solid rgba(theme.$theme-color, 0.2);
+    border-radius: theme.$radius-panel;
+    background: rgba(theme.$theme-color, 0.05);
+  }
+
+  &__price-badge-value {
+    color: theme.$theme-color;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  &__price-badge-label {
+    color: theme.$color-muted;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  /* ── Description ── */
+  &__description {
+    max-width: 700px;
+    margin: 0;
+    color: theme.$color-ink;
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  /* ── Specs ── */
+  &__specs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 24px;
+    margin: 0;
+    border: 1px solid rgba(theme.$color-ink, 0.08);
+    border-radius: theme.$radius-panel;
+    background: theme.$color-surface-muted;
+  }
+
+  &__spec {
+    dt {
+      margin-bottom: 6px;
+      color: theme.$color-muted;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    dd {
+      margin: 0;
+      color: theme.$color-heading;
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: -0.01em;
+    }
+  }
+
+  /* ── Gallery ── */
+  &__gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  &__gallery-item {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: 200px;
+    padding: 16px;
+    border-radius: theme.$radius-panel;
+    overflow: hidden;
+    color: #ffffff;
+  }
+
+  &__gallery-label {
+    position: relative;
+    z-index: 1;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    opacity: 0.85;
+    text-transform: capitalize;
+  }
+
+  /* ── Amenities ── */
+  &__amenities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  &__amenity {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border: 1px solid rgba(theme.$theme-color, 0.15);
+    border-radius: theme.$radius-pill;
+    background: rgba(theme.$theme-color, 0.04);
+    color: theme.$color-ink;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  /* ── Footer ── */
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  &__price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  &__price-value {
+    color: theme.$color-heading;
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  &__price-unit {
+    color: theme.$color-muted;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  &__cta {
+    @include theme.themed-action(48px);
+
+    padding: 0 32px;
+    font-size: 0.88rem;
+    letter-spacing: 0.07em;
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
+  }
+}
+
+/* ── Mobile ── */
+@media (max-width: theme.$breakpoint-mobile) {
+  .venue-showcase {
+    padding: 48px 16px;
+
+    &__header {
+      flex-direction: column;
+    }
+
+    &__price-badge {
+      align-self: flex-start;
+    }
+
+    &__specs {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    &__gallery {
+      grid-template-columns: 1fr;
+    }
+
+    &__gallery-item {
+      min-height: 140px;
+    }
+
+    &__footer {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    &__cta {
+      width: 100%;
+      text-align: center;
+    }
+  }
+}

@@ -1,0 +1,75 @@
+$font-family:
+  'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+$theme-color: #4c1d95;
+$theme-color-dark: #3b1d60;
+$theme-color-contrast: #ffffff;
+
+$color-page-bg: #f7f4ff;
+$color-surface: #ffffff;
+$color-surface-soft: #fbfdff;
+$color-surface-muted: #f8fafc;
+$color-panel-tint: #fbfaff;
+$color-quote-tint: #fcfaff;
+$color-card-bg: #ffffff;
+
+$color-ink: #1e293b;
+$color-heading: #0f172a;
+$color-ui-text: #1e293b;
+$color-muted: #5f6b7a;
+$color-muted-strong: #4b5563;
+$color-border-text: #4e5b6b;
+$color-error: #991b1b;
+$color-success: #14532d;
+$color-success-border: #15803d;
+$color-success-bg: #e8f7ee;
+
+$radius-panel: 18px;
+$radius-control: 12px;
+$radius-pill: 999px;
+
+$shadow-panel: 0 20px 58px rgba($theme-color-dark, 0.1);
+$shadow-panel-active: 0 20px 58px rgba($theme-color, 0.16);
+$shadow-launcher: 0 18px 44px rgba($color-ink, 0.18);
+$shadow-launcher-hover: 0 20px 48px rgba($color-ink, 0.22);
+$shadow-chat: 0 24px 70px rgba($color-ink, 0.22);
+
+$breakpoint-mobile: 780px;
+
+@mixin focus-ring($color: $theme-color, $offset: 2px) {
+  outline: 3px solid rgba($color, 0.3);
+  outline-offset: $offset;
+}
+
+@mixin panel-surface($padding: 24px, $background: $color-surface) {
+  padding: $padding;
+  border: 1px solid rgba($color-ink, 0.1);
+  border-radius: $radius-panel;
+  background: $background;
+  box-shadow: $shadow-panel;
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin themed-action($height: 44px) {
+  min-height: $height;
+  border: 0;
+  border-radius: $radius-control;
+  background: $theme-color;
+  color: $theme-color-contrast;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+
+  &:hover:not(:disabled) {
+    background: $theme-color-dark;
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
