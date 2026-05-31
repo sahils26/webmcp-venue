@@ -33,10 +33,9 @@ def main():
         
         print("\n=== Agent Ready! (type 'quit' to exit) ===")
         # We add a thread ID to maintain conversation memory
-        # and a recursion limit to prevent Mistral from looping and hitting rate limits!
         config = {
             "configurable": {"thread_id": "cli_thread"},
-            "recursion_limit": 5
+            "recursion_limit": 15
         }
         
         while True:
