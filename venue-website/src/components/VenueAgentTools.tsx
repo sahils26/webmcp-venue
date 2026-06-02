@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppDispatch } from '../app/hooks'
 import {
@@ -5,6 +6,7 @@ import {
   checkAvailabilitySchema,
   pricingSchema,
   quoteRequestSchema,
+  recommendByEventTypeSchema,
   roomDetailsSchema,
   venueSearchSchema,
 } from '../data/agentToolSchemas'
@@ -20,6 +22,7 @@ import {
   getRoomAvailability,
   getRoomByName,
   listAvailableVenues,
+  recommendVenuesByEventType,
   resolveRoomName,
   roomNames,
   searchVenues,
@@ -38,6 +41,7 @@ function getStringParam(params: AgentToolParams | unknown, key: string): string 
 export default function VenueAgentTools() {
   const dispatch = useAppDispatch()
   const location = useLocation()
+  const lastMatchedEventTypeRef = useRef('')
   const currentVenue = venueSearchResults.find(
     (venue) => location.pathname === `/venues/${venue.id}`,
   )
@@ -60,12 +64,35 @@ export default function VenueAgentTools() {
     {
       name: 'search_venues',
       description:
-        'Searches venues by guest count, capacity range, date, event type, facilities, amenities, or free-text planning details. Returns exact matches when possible and close suggestions when no venue matches every detail.',
+        'Searches venues by guest count, capacity range, date, facilities, amenities, optional event type, or free-text planning details. Use this for requirements-based searches even when the user has no event type in mind. Returns exact matches when possible and close suggestions when no venue matches every detail.',
       schema: venueSearchSchema,
     },
     (params) => {
       const result = searchVenues(params)
+      const matchedEventType = getStringParam(result, 'matchedEventType')
+      lastMatchedEventTypeRef.current = matchedEventType
       dispatch(agentQueryRecorded('Searching venues by planning requirements'))
+      return result
+    },
+  )
+
+  useAgentTool(
+    {
+      name: 'recommend_venues_by_event_type',
+      description:
+        'Recommends venues suited to a specific event type (e.g. birthday, wedding, conference, workshop, gala, dinner). Use this only when the user states the kind of event they are planning. Returns venues tagged for that event type, or the list of supported event types when the input is unrecognised.',
+      schema: recommendByEventTypeSchema,
+    },
+    (params) => {
+      const eventType = getStringParam(params, 'eventType')
+      const result = recommendVenuesByEventType(eventType)
+      const matchedEventType = getStringParam(result, 'matchedEventType')
+      lastMatchedEventTypeRef.current = matchedEventType
+      dispatch(
+        agentQueryRecorded(
+          eventType ? `Recommending venues for ${eventType}` : 'Recommending venues by event type',
+        ),
+      )
       return result
     },
   )
@@ -95,14 +122,18 @@ export default function VenueAgentTools() {
     {
       name: 'prepare_quote_request',
       description:
-        'Prefills the visible quote request form only when the requested room is available on the requested date. A successful call minimizes the chat and scrolls the user to the filled form. The user must still click submit.',
+        'Prefills the visible quote request form only when the requested room is available on the requested date and, when an event type was mentioned, suitable for that event type. A successful call minimizes the chat and scrolls the user to the filled form. The user must still click submit.',
       schema: quoteRequestSchema,
     },
     (params) => {
       const roomName = getStringParam(params, 'roomName') || currentVenue?.name || ''
       const date = getStringParam(params, 'date')
       const email = getStringParam(params, 'email')
-      const availability = getRoomAvailability(roomName, date)
+      const eventType = getStringParam(params, 'eventType') || lastMatchedEventTypeRef.current
+      const availability = getRoomAvailability(roomName, date, eventType)
+      if (availability.matchedEventType) {
+        lastMatchedEventTypeRef.current = availability.matchedEventType
+      }
       dispatch(
         agentQueryRecorded(
           `Preparing quote request for ${availability.roomName || roomName} on ${
@@ -113,6 +144,7 @@ export default function VenueAgentTools() {
       if (!availability.success || !availability.available) {
         dispatch(quoteStatusSet(`${availability.message} Quote request form was not prepared.`))
         return {
+          ...availability,
           success: false,
           available: availability.available,
           message: `${availability.message} Quote request form was not prepared.`,
@@ -128,6 +160,7 @@ export default function VenueAgentTools() {
       dispatch(quoteStatusSet(null))
       dispatch(quoteFormHandoffRequested())
       return {
+        ...availability,
         success: true,
         available: true,
         message:
@@ -139,13 +172,18 @@ export default function VenueAgentTools() {
   useAgentTool(
     {
       name: 'check_availability',
-      description: 'Checks if a specific room is available on a given date.',
+      description:
+        'Checks if a specific room is available on a given date and, when an event type was mentioned, whether that room is suitable for the event type. If no event type was mentioned, checks date availability only.',
       schema: checkAvailabilitySchema,
     },
     (params) => {
       const roomName = getStringParam(params, 'roomName') || currentVenue?.name || ''
       const date = getStringParam(params, 'date')
-      const availability = getRoomAvailability(roomName, date)
+      const eventType = getStringParam(params, 'eventType') || lastMatchedEventTypeRef.current
+      const availability = getRoomAvailability(roomName, date, eventType)
+      if (availability.matchedEventType) {
+        lastMatchedEventTypeRef.current = availability.matchedEventType
+      }
       dispatch(
         agentQueryRecorded(
           `Checking availability for ${availability.roomName || roomName} on ${

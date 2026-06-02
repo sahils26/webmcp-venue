@@ -28,6 +28,7 @@ async function waitForVenueTools(): Promise<void> {
       expect.arrayContaining([
         'list_available_venues',
         'search_venues',
+        'recommend_venues_by_event_type',
         'get_room_details',
         'prepare_quote_request',
         'check_availability',
@@ -113,6 +114,27 @@ describe('VenuePage', () => {
     expect(screen.getByText('5 curated venues in Jena, Germany')).toBeInTheDocument()
     expect(within(venueGrid).getByRole('heading', { name: 'The Grand Hall' })).toBeInTheDocument()
     expect(within(venueGrid).getByRole('heading', { name: 'Garden Pavilion' })).toBeInTheDocument()
+  })
+
+  it('filters venue cards by event type and clears it with reset', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
+
+    await user.selectOptions(screen.getByLabelText('Event type'), 'wedding')
+
+    let venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(screen.getByText('Showing 2 of 5 curated venues')).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'The Grand Hall' })).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'Garden Pavilion' })).toBeInTheDocument()
+    expect(
+      within(venueGrid).queryByRole('heading', { name: 'Skyline Loft' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Reset filters' }))
+
+    venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(screen.getByText('5 curated venues in Jena, Germany')).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'Skyline Loft' })).toBeInTheDocument()
   })
 
   it('cycles venue card carousel images without leaving the venue list', async () => {
@@ -252,6 +274,37 @@ describe('VenuePage', () => {
     })
   })
 
+  it('registers an event-type recommendation tool for the assistant', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    const weddingVenues = (await callVenueTool('recommend_venues_by_event_type', {
+      eventType: 'wedding',
+    })) as { venues: { name: string }[] }
+
+    expect(weddingVenues).toMatchObject({ success: true, matchedEventType: 'wedding' })
+    expect(weddingVenues.venues.map((venue) => venue.name).sort()).toEqual([
+      'Garden Pavilion',
+      'The Grand Hall',
+    ])
+
+    await expect(
+      callVenueTool('recommend_venues_by_event_type', { eventType: 'birthday' }),
+    ).resolves.toMatchObject({
+      success: true,
+      matchedEventType: 'celebration',
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'Atelier Courtyard' }),
+        expect.objectContaining({ name: 'Garden Pavilion' }),
+      ]),
+    })
+
+    await expect(
+      callVenueTool('recommend_venues_by_event_type', { eventType: 'underwater rave' }),
+    ).resolves.toMatchObject({ success: false, matchedEventType: '' })
+  })
+
   it('registers a flexible venue search tool for capacity and event-fit prompts', async () => {
     renderVenuePage()
 
@@ -273,20 +326,49 @@ describe('VenuePage', () => {
 
     await expect(
       callVenueTool('search_venues', {
+        query: 'birthday party for 60 people',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      matchedEventType: 'celebration',
+      exactMatchCount: 2,
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'Atelier Courtyard' }),
+        expect.objectContaining({ name: 'Garden Pavilion' }),
+      ]),
+    })
+
+    await expect(
+      callVenueTool('search_venues', {
+        guestCount: 100,
+        requiredAmenities: ['projector'],
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      matchedEventType: '',
+      exactMatchCount: 2,
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'The Grand Hall', capacity: 150 }),
+        expect.objectContaining({ name: 'River Conference Suite', capacity: 120 }),
+      ]),
+    })
+
+    await expect(
+      callVenueTool('search_venues', {
         eventType: 'wedding',
         details: 'outdoor reception with catering and parking',
       }),
     ).resolves.toMatchObject({
       success: true,
-      exactMatchCount: 0,
-      suggestionCount: 3,
+      matchedEventType: 'wedding',
+      exactMatchCount: 1,
+      suggestionCount: 0,
       venues: [
         expect.objectContaining({
-          fit: 'suggestion',
+          fit: 'exact',
+          name: 'Garden Pavilion',
           matchedAmenities: expect.arrayContaining(['outdoor', 'catering', 'parking']),
         }),
-        expect.any(Object),
-        expect.any(Object),
       ],
     })
   })
@@ -317,6 +399,77 @@ describe('VenuePage', () => {
       date: '2026-06-15',
       available: true,
     })
+
+    await expect(
+      callVenueTool('check_availability', {
+        roomName: 'Garden Pavilion',
+        date: '2026-07-08',
+        eventType: 'birthday',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      roomName: 'Garden Pavilion',
+      date: '2026-07-08',
+      available: true,
+      matchedEventType: 'celebration',
+      eventTypeSuitable: true,
+    })
+
+    await expect(
+      callVenueTool('check_availability', {
+        roomName: 'Grand Hall',
+        date: '2026-06-15',
+        eventType: 'birthday',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      roomName: 'The Grand Hall',
+      date: '2026-06-15',
+      available: false,
+      matchedEventType: 'celebration',
+      eventTypeSuitable: false,
+    })
+  })
+
+  it('carries event type context into availability checks until a generic search clears it', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    await expect(
+      callVenueTool('recommend_venues_by_event_type', { eventType: 'birthday' }),
+    ).resolves.toMatchObject({ success: true, matchedEventType: 'celebration' })
+
+    await expect(
+      callVenueTool('check_availability', {
+        roomName: 'Garden Pavilion',
+        date: '2026-07-08',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      available: true,
+      matchedEventType: 'celebration',
+      eventTypeSuitable: true,
+    })
+
+    await expect(
+      callVenueTool('search_venues', {
+        guestCount: 100,
+        requiredAmenities: ['projector'],
+      }),
+    ).resolves.toMatchObject({ success: true, matchedEventType: '' })
+
+    const unconstrainedAvailability = (await callVenueTool('check_availability', {
+      roomName: 'Grand Hall',
+      date: '2026-06-15',
+    })) as Record<string, unknown>
+
+    expect(unconstrainedAvailability).toMatchObject({
+      success: true,
+      available: true,
+    })
+    expect(unconstrainedAvailability).not.toHaveProperty('matchedEventType')
+    expect(unconstrainedAvailability).not.toHaveProperty('eventTypeSuitable')
   })
 
   it('registers a pricing tool with explicit euro formatting', async () => {
@@ -443,6 +596,35 @@ describe('VenuePage', () => {
     expect(
       screen.getByText(
         'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the quote form untouched when the room does not suit the event type', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    await expect(
+      callVenueTool('prepare_quote_request', {
+        roomName: 'Grand Hall',
+        date: '2026-06-15',
+        email: 'planner@example.com',
+        eventType: 'birthday',
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      available: false,
+      matchedEventType: 'celebration',
+      eventTypeSuitable: false,
+      message:
+        'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
+    })
+
+    expect(screen.getByLabelText('Room Name')).toHaveValue('')
+    expect(
+      screen.getByText(
+        'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
       ),
     ).toBeInTheDocument()
   })

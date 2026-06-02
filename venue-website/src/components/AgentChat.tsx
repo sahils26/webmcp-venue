@@ -96,8 +96,8 @@ const INTERNAL_TOOL_SYNTAX_PATTERNS = [
   /<\/?function\b/i,
   /\bfunction_call\b/i,
   /\btool_calls?\b/i,
-  /\b(call|invoke|use)\s+[`'"]?(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request|search_venues)\b/i,
-  /\b(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request|search_venues)\s*\(/i,
+  /\b(call|invoke|use)\s+[`'"]?(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request|recommend_venues_by_event_type|search_venues)\b/i,
+  /\b(check_availability|get_pricing|get_room_details|list_available_venues|prepare_quote_request|recommend_venues_by_event_type|search_venues)\s*\(/i,
 ]
 const LEGACY_STORAGE_KEY = 'agentChatMessages'
 
@@ -119,9 +119,12 @@ STRICT RULES:
 8. Every visible answer must be plain English for an event planner. Never mention internal tools, function names, JSON, XML-style tags, code snippets, or that you can "call" a function.
 9. Use tools silently when needed. After receiving tool results, answer the user unless another tool call is strictly necessary.
 10. When a user asks which venues, rooms, or spaces are available, use the available venue-listing tool. If no date is provided, list the venue options with their next available dates and ask for the event date only if they need date-specific availability.
-11. When a user asks for venues by guest count, capacity range, event type, facilities, atmosphere, or general planning details, use the venue search tool. It can return exact matches or close suggestions.
-12. If the venue search tool says there is no exact match, explain that clearly and then summarize the suggested venues and why they are close.
-13. When a user asks you to fill, prepare, or complete the quote form, collect the room name, event date, and email address. Once all three are known, use the quote request tool and remind the user that they must review the form and click submit.`,
+11. When a user only states an event type, such as birthday, wedding, conference, workshop, gala, dinner, or party, use the event-type recommendation tool.
+12. When a user gives venue requirements such as guest count, capacity range, date, facilities, amenities, atmosphere, or planning details, use the venue search tool. Include eventType only if the user has mentioned an event type; otherwise omit it and search by the other requirements.
+13. Do not invent an event type. If the user has no specific event type in mind, continue with capacity, date, amenity, facility, or general requirement filters.
+14. If the venue search tool says there is no exact match, explain that clearly and then summarize the suggested venues and why they are close.
+15. When checking availability or preparing a quote after the user has already mentioned an event type, preserve that event type. If no event type has been mentioned, check date availability only.
+16. When a user asks you to fill, prepare, or complete the quote form, collect the room name, event date, and email address. Once all three are known, use the quote request tool and remind the user that they must review the form and click submit.`,
 }
 
 interface AgentChatProps {

@@ -114,6 +114,38 @@
     }
   }
 
+  &__event-types {
+    margin: 18px 0 0;
+  }
+
+  &__event-types-label {
+    margin: 0 0 8px;
+    color: theme.$color-muted;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  &__event-types-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__event-type-tag {
+    padding: 6px 14px;
+    border: 1px solid rgba(theme.$theme-color, 0.2);
+    border-radius: theme.$radius-pill;
+    background: rgba(theme.$theme-color, 0.06);
+    color: theme.$theme-color;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
   &__section {
     max-width: 1200px;
     margin: 0 auto;

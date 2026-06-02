@@ -44,10 +44,22 @@ export interface RoomAvailabilityResult {
   date: string
 
   /**
-   * True only when the room exists, date is valid, and date appears in the JSON
-   * availability list.
+   * True only when the room exists, date is valid, date appears in the JSON
+   * availability list, and any supplied event type suits the venue.
    */
   available: boolean
+
+  /** Raw event type requested by the user or model, when supplied. */
+  eventType?: string
+
+  /** Canonical event type id matched from the request, when recognised. */
+  matchedEventType?: string
+
+  /** Human-readable event type label for display/model responses. */
+  eventTypeLabel?: string
+
+  /** Whether the venue is suitable for the supplied event type. */
+  eventTypeSuitable?: boolean
 
   /** Human-readable status safe to display in the UI or return to the model. */
   message: string
@@ -145,6 +157,9 @@ export interface LocalizedVenueSearchResult {
   /** Short amenity ids rendered in the compact state. */
   top_amenities: string[]
 
+  /** Canonical event type ids this venue is suitable for. */
+  event_types: string[]
+
   /** Next available date in yyyy-mm-dd format. */
   next_available_date: string
 
@@ -210,6 +225,9 @@ export interface VenueSearchResult {
 
   /** Short amenity ids rendered in the compact state. */
   top_amenities: string[]
+
+  /** Canonical event type ids this venue is suitable for. */
+  event_types: string[]
 
   /** Compact amenity labels keyed by amenity id for the selected locale. */
   compact_amenity_labels: Record<string, string>

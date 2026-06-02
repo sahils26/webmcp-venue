@@ -8,6 +8,7 @@
       "price_per_day": 1200,
       "thumbnail_url": "placeholder_thumb.jpg",
       "top_amenities": ["projector", "catering", "parking"],
+      "event_types": ["conference", "corporate", "networking", "wedding", "seminar"],
       "next_available_date": "2026-06-15",
       "detailed_amenities": [
         { "id": "projector", "icon": "📽️" },
@@ -63,6 +64,7 @@
       "price_per_day": 980,
       "thumbnail_url": "skyline_loft_thumb.jpg",
       "top_amenities": ["wifi", "projector", "catering"],
+      "event_types": ["corporate", "workshop", "networking"],
       "next_available_date": "2026-06-18",
       "detailed_amenities": [
         { "id": "wifi", "icon": "⚡" },
@@ -118,6 +120,7 @@
       "price_per_day": 760,
       "thumbnail_url": "atelier_courtyard_thumb.jpg",
       "top_amenities": ["catering", "parking", "wifi"],
+      "event_types": ["workshop", "celebration", "dinner"],
       "next_available_date": "2026-06-22",
       "detailed_amenities": [
         { "id": "catering", "icon": "🍽️" },
@@ -173,6 +176,7 @@
       "price_per_day": 1100,
       "thumbnail_url": "river_suite_thumb.jpg",
       "top_amenities": ["projector", "wifi", "parking"],
+      "event_types": ["conference", "corporate", "seminar"],
       "next_available_date": "2026-07-03",
       "detailed_amenities": [
         { "id": "projector", "icon": "📽️" },
@@ -228,6 +232,7 @@
       "price_per_day": 690,
       "thumbnail_url": "garden_pavilion_thumb.jpg",
       "top_amenities": ["catering", "wifi", "parking"],
+      "event_types": ["wedding", "celebration", "dinner"],
       "next_available_date": "2026-07-08",
       "detailed_amenities": [
         { "id": "catering", "icon": "🍽️" },

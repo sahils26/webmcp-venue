@@ -1,5 +1,6 @@
 import { type ChangeEvent, type MouseEvent, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { EVENT_TYPES } from '../../data/eventTypes'
 import type { VenueSearchResult } from '../../types/venue'
 import { formatVenueCurrency } from '../../utils/currency'
 import './GallerySection.scss'
@@ -13,6 +14,11 @@ interface VenueGalleryCardProps {
 }
 
 interface AmenityFilterOption {
+  id: string
+  label: string
+}
+
+interface EventTypeFilterOption {
   id: string
   label: string
 }
@@ -178,12 +184,23 @@ function getAmenityOptions(venues: VenueSearchResult[]): AmenityFilterOption[] {
   )
 }
 
+function getEventTypeOptions(venues: VenueSearchResult[]): EventTypeFilterOption[] {
+  const availableEventTypeIds = new Set(
+    venues.flatMap((venue) => venue.event_types),
+  )
+
+  // Preserve the canonical order from EVENT_TYPES, keeping only types in use.
+  return EVENT_TYPES.filter((eventType) => availableEventTypeIds.has(eventType.id))
+}
+
 export default function GallerySection({ venues }: GallerySectionProps) {
   const [selectedVenueId, setSelectedVenueId] = useState('')
   const [guestCount, setGuestCount] = useState('')
+  const [selectedEventType, setSelectedEventType] = useState('')
   const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([])
 
   const amenityOptions = useMemo(() => getAmenityOptions(venues), [venues])
+  const eventTypeOptions = useMemo(() => getEventTypeOptions(venues), [venues])
   const selectedAmenitySet = useMemo(() => new Set(selectedAmenityIds), [selectedAmenityIds])
   const guestCountValue = Number(guestCount)
   const hasGuestCountFilter = Number.isFinite(guestCountValue) && guestCountValue > 0
@@ -195,24 +212,31 @@ export default function GallerySection({ venues }: GallerySectionProps) {
         const matchesGuestCount = hasGuestCountFilter
           ? venue.capacity >= guestCountValue
           : true
+        const matchesEventType = selectedEventType
+          ? venue.event_types.includes(selectedEventType)
+          : true
         const venueAmenityIds = new Set(venue.detailed_amenities.map((amenity) => amenity.id))
         const matchesAmenities = selectedAmenityIds.every((amenityId) =>
           venueAmenityIds.has(amenityId),
         )
 
-        return matchesVenueName && matchesGuestCount && matchesAmenities
+        return matchesVenueName && matchesGuestCount && matchesEventType && matchesAmenities
       }),
     [
       guestCountValue,
       hasGuestCountFilter,
       selectedAmenityIds,
+      selectedEventType,
       selectedVenueId,
       venues,
     ],
   )
 
   const hasActiveFilters =
-    Boolean(selectedVenueId) || Boolean(guestCount) || selectedAmenityIds.length > 0
+    Boolean(selectedVenueId) ||
+    Boolean(guestCount) ||
+    Boolean(selectedEventType) ||
+    selectedAmenityIds.length > 0
   const resultSummary =
     filteredVenues.length === venues.length
       ? `${venues.length} curated venues in Jena, Germany`
@@ -233,6 +257,7 @@ export default function GallerySection({ venues }: GallerySectionProps) {
   const handleResetFilters = () => {
     setSelectedVenueId('')
     setGuestCount('')
+    setSelectedEventType('')
     setSelectedAmenityIds([])
   }
 
@@ -278,6 +303,22 @@ export default function GallerySection({ venues }: GallerySectionProps) {
                 onChange={handleGuestCountChange}
                 placeholder="e.g. 100"
               />
+            </label>
+
+            <label className="gallery-section__field" htmlFor="venue-filter-event-type">
+              <span>Event type</span>
+              <select
+                id="venue-filter-event-type"
+                value={selectedEventType}
+                onChange={(event) => setSelectedEventType(event.target.value)}
+              >
+                <option value="">Any event type</option>
+                {eventTypeOptions.map((eventType) => (
+                  <option key={eventType.id} value={eventType.id}>
+                    {eventType.label}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
 

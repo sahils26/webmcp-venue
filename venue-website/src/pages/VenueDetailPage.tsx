@@ -4,6 +4,7 @@ import { useAppSelector } from '../app/hooks'
 import QuoteForm from '../components/landing/QuoteForm'
 import SiteFooter from '../components/landing/SiteFooter'
 import SiteHeader from '../components/landing/SiteHeader'
+import { getEventTypeLabel } from '../data/eventTypes'
 import { venueSearchResults } from '../data/venueSearchResults'
 import {
   selectQuoteDraft,
@@ -204,6 +205,19 @@ export default function VenueDetailPage() {
                 <dd>{venue.dimensions}</dd>
               </div>
             </dl>
+
+            {venue.event_types.length > 0 && (
+              <div className="venue-detail__event-types" aria-label={`${venue.name} ideal event types`}>
+                <p className="venue-detail__event-types-label">Ideal for</p>
+                <ul className="venue-detail__event-types-tags">
+                  {venue.event_types.map((eventTypeId) => (
+                    <li key={eventTypeId} className="venue-detail__event-type-tag">
+                      {getEventTypeLabel(eventTypeId)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </section>
 
