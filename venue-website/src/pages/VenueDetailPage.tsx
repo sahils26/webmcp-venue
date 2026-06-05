@@ -1,11 +1,17 @@
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { useAppSelector } from '../app/hooks'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useAppDispatch, useAppSelector } from '../app/hooks'
 import QuoteForm from '../components/landing/QuoteForm'
 import SiteFooter from '../components/landing/SiteFooter'
 import SiteHeader from '../components/landing/SiteHeader'
 import { getEventTypeLabel } from '../data/eventTypes'
 import { venueSearchResults } from '../data/venueSearchResults'
+import {
+  getBookedDateKeysForVenue,
+  selectVenueBookings,
+  venueBookingCompleted,
+} from '../features/bookings/bookingSlice'
+import { appendStoredVenueBooking } from '../features/bookings/bookingStorage'
 import {
   selectQuoteDraft,
   selectQuoteHandoffRequestKey,
@@ -13,19 +19,107 @@ import {
 import { getRoomAvailability, resolveRoomName } from '../services/venueAvailability'
 import type { QuoteDraft, VenueSearchResult } from '../types/venue'
 import { formatVenueCurrency } from '../utils/currency'
-import { normalizeDateKey } from '../utils/dateKeys'
+import { getNextOpenDateKey, getTodayDateKey, normalizeDateKey } from '../utils/dateKeys'
 import './style/VenueDetailPage.scss'
-
-function getTodayDateKey(date = new Date()): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
-}
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+const fullDateFormatter = new Intl.DateTimeFormat('en-US', {
+  day: 'numeric',
+  month: 'long',
+  timeZone: 'UTC',
+  weekday: 'short',
+  year: 'numeric',
+})
+
+function formatDate(date: string): string {
+  return fullDateFormatter.format(new Date(`${date}T00:00:00Z`))
+}
+
+interface PaymentDraft {
+  cardholderName: string
+  cardNumber: string
+  expiryDate: string
+  securityCode: string
+  billingAddress: string
+}
+
+const emptyPaymentDraft: PaymentDraft = {
+  cardholderName: '',
+  cardNumber: '',
+  expiryDate: '',
+  securityCode: '',
+  billingAddress: '',
+}
+
+interface VenueBookingHighlightsProps {
+  venue: VenueSearchResult
+}
+
+function VenueBookingHighlights({ venue }: VenueBookingHighlightsProps) {
+  const bookings = useAppSelector(selectVenueBookings)
+  const todayDateKey = useMemo(() => getTodayDateKey(), [])
+  const bookedDates = useMemo(
+    () => getBookedDateKeysForVenue(bookings, venue.id),
+    [bookings, venue.id],
+  )
+  const nextBookableDate = getNextOpenDateKey(bookedDates, todayDateKey)
+  const amenityPreview = venue.detailed_amenities.slice(0, 3)
+
+  return (
+    <div className="venue-detail__booking-info">
+      <div className="venue-detail__section-heading">
+        <p className="venue-detail__eyebrow">Booking support</p>
+        <h2 className="venue-detail__section-title">Plan With Clear Availability</h2>
+      </div>
+
+      <dl className="venue-detail__booking-facts" aria-label={`${venue.name} booking facts`}>
+        <div>
+          <dt>Next open date</dt>
+          <dd>{nextBookableDate ? formatDate(nextBookableDate) : 'No open dates'}</dd>
+        </div>
+        <div>
+          <dt>Capacity</dt>
+          <dd>Up to {venue.capacity} guests</dd>
+        </div>
+        <div>
+          <dt>Daily rate</dt>
+          <dd>{formatVenueCurrency(venue.price_per_day)}</dd>
+        </div>
+        <div>
+          <dt>Confirmation</dt>
+          <dd>Payment locks the date and triggers the email document.</dd>
+        </div>
+      </dl>
+
+      <div className="venue-detail__booking-note">
+        <h3>Included With This Venue</h3>
+        <ul>
+          {amenityPreview.map((amenity) => (
+            <li key={amenity.id}>
+              <span aria-hidden="true">{amenity.icon}</span>
+              {amenity.label}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="venue-detail__blocked-dates" aria-label={`${venue.name} blocked dates`}>
+        <h3>Blocked Dates</h3>
+        {bookedDates.length ? (
+          <ul>
+            {bookedDates.map((date) => (
+              <li key={date}>{formatDate(date)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>No blocked dates yet.</p>
+        )}
+      </div>
+    </div>
+  )
 }
 
 interface VenueQuotePanelProps {
@@ -33,9 +127,16 @@ interface VenueQuotePanelProps {
 }
 
 function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const todayDateKey = useMemo(() => getTodayDateKey(), [])
   const preparedQuoteDraft = useAppSelector(selectQuoteDraft)
   const quoteHandoffRequestKey = useAppSelector(selectQuoteHandoffRequestKey)
+  const bookings = useAppSelector(selectVenueBookings)
+  const bookedDates = useMemo(
+    () => getBookedDateKeysForVenue(bookings, venue.id),
+    [bookings, venue.id],
+  )
   const handledHandoffRequestKeyRef = useRef(0)
   const [quoteDraft, setQuoteDraft] = useState<QuoteDraft>({
     roomName: venue.name,
@@ -43,6 +144,9 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
     email: '',
   })
   const [quoteStatus, setQuoteStatus] = useState<string | null>(null)
+  const [bookingStep, setBookingStep] = useState<'details' | 'payment'>('details')
+  const [paymentDraft, setPaymentDraft] = useState<PaymentDraft>(emptyPaymentDraft)
+  const nextBookableDate = getNextOpenDateKey(bookedDates, todayDateKey)
 
   useEffect(() => {
     if (
@@ -59,6 +163,7 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
       date: preparedQuoteDraft.date,
       email: preparedQuoteDraft.email,
     })
+    setBookingStep('details')
     setQuoteStatus(null)
     document
       .getElementById('venue-detail-quote')
@@ -77,6 +182,11 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
       setQuoteDraft((currentDraft) => ({ ...currentDraft, [name]: value }))
       setQuoteStatus(null)
     }
+  }
+
+  const handleQuoteDateSelect = (date: string) => {
+    setQuoteDraft((currentDraft) => ({ ...currentDraft, date }))
+    setQuoteStatus(null)
   }
 
   const handleQuoteSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -100,42 +210,207 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
       return
     }
 
+    if (bookedDates.includes(date)) {
+      setQuoteStatus(`${venue.name} is already booked on ${date}. Please choose another date.`)
+      return
+    }
+
     const availability = getRoomAvailability(venue.name, date)
     if (!availability.success || !availability.available) {
       setQuoteStatus(`${availability.message} Quote request was not sent.`)
       return
     }
 
-    setQuoteStatus(`Quote requested for ${availability.roomName} on ${date} by ${email}.`)
+    setPaymentDraft(emptyPaymentDraft)
+    setBookingStep('payment')
+    setQuoteStatus(null)
+  }
+
+  const handlePaymentFieldChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = event.target
+
+    if (name in emptyPaymentDraft) {
+      setPaymentDraft((currentDraft) => ({
+        ...currentDraft,
+        [name as keyof PaymentDraft]: value,
+      }))
+    }
+  }
+
+  const handlePaymentBack = () => {
+    setBookingStep('details')
+    setQuoteStatus(null)
+  }
+
+  const handlePaymentSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const date = normalizeDateKey(quoteDraft.date)
+    if (!date) {
+      setBookingStep('details')
+      setQuoteStatus('Please choose a valid event date before payment.')
+      return
+    }
+
+    if (bookedDates.includes(date)) {
+      setBookingStep('details')
+      setQuoteStatus(`${venue.name} is already booked on ${date}. Please choose another date.`)
+      return
+    }
+
+    const booking = {
+      id: `${venue.id}-${date}-${Date.now()}`,
+      venueId: venue.id,
+      venueName: venue.name,
+      date,
+      email: quoteDraft.email.trim(),
+      amount: venue.price_per_day,
+      currencyCode: 'EUR' as const,
+      createdAt: new Date().toISOString(),
+    }
+
+    appendStoredVenueBooking(booking)
+    dispatch(venueBookingCompleted(booking))
+    navigate('/', {
+      state: {
+        paymentSuccess: {
+          venueName: venue.name,
+          date,
+          email: booking.email,
+        },
+      },
+    })
   }
 
   return (
     <aside className="venue-detail__booking-panel" aria-label="Quote request">
-      <p className="venue-detail__panel-label">Next available</p>
+      <p className="venue-detail__panel-label">
+        {bookingStep === 'payment' ? 'Dummy payment' : 'Next available'}
+      </p>
       <p className="venue-detail__panel-date">
-        {new Intl.DateTimeFormat('en-US', {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-        }).format(new Date(`${venue.next_available_date}T00:00:00`))}
+        {nextBookableDate ? formatDate(nextBookableDate) : 'No open dates'}
       </p>
       <p className="venue-detail__policy">{venue.cancellation_policy}</p>
 
       <div className="venue-detail__quote-form" id="venue-detail-quote">
-        <h2 className="venue-detail__quote-title">Request a Quote</h2>
-        <QuoteForm
-          idPrefix="detail-quote"
-          quoteDraft={quoteDraft}
-          quoteStatus={quoteStatus}
-          onQuoteFieldChange={handleQuoteFieldChange}
-          onQuoteSubmit={handleQuoteSubmit}
-          roomLabel="Venue"
-          roomReadOnly
-          dateMin={todayDateKey}
-          dateHelpText="Choose today or a future available event date."
-          submitButtonId="detail-quote-submit"
-          noValidate
-        />
+        <h2 className="venue-detail__quote-title">
+          {bookingStep === 'payment' ? 'Complete Booking' : 'Reserve This Venue'}
+        </h2>
+
+        {bookingStep === 'details' ? (
+          <QuoteForm
+            idPrefix="detail-quote"
+            quoteDraft={quoteDraft}
+            quoteStatus={quoteStatus}
+            onQuoteFieldChange={handleQuoteFieldChange}
+            onQuoteSubmit={handleQuoteSubmit}
+            bookedDates={bookedDates}
+            calendarEmptyMessage="No future dates are open for this venue."
+            onQuoteDateSelect={handleQuoteDateSelect}
+            roomLabel="Venue"
+            roomReadOnly
+            dateMin={todayDateKey}
+            dateHelpText="All future dates are open unless already booked."
+            showCalendar
+            submitButtonId="detail-quote-submit"
+            submitButtonLabel="Continue to Payment"
+            noValidate
+          />
+        ) : (
+          <>
+            <dl className="venue-detail__payment-summary" aria-label="Booking summary">
+              <div>
+                <dt>Venue</dt>
+                <dd>{venue.name}</dd>
+              </div>
+              <div>
+                <dt>Date</dt>
+                <dd>{formatDate(quoteDraft.date)}</dd>
+              </div>
+              <div>
+                <dt>Total</dt>
+                <dd>{formatVenueCurrency(venue.price_per_day)}</dd>
+              </div>
+            </dl>
+
+            <form
+              className="venue-detail__payment-form"
+              noValidate
+              onSubmit={handlePaymentSubmit}
+            >
+              <label className="venue-detail__payment-field">
+                <span>Name on Card</span>
+                <input
+                  type="text"
+                  name="cardholderName"
+                  value={paymentDraft.cardholderName}
+                  onChange={handlePaymentFieldChange}
+                />
+              </label>
+              <label className="venue-detail__payment-field">
+                <span>Card Number</span>
+                <input
+                  type="text"
+                  name="cardNumber"
+                  inputMode="numeric"
+                  value={paymentDraft.cardNumber}
+                  onChange={handlePaymentFieldChange}
+                />
+              </label>
+              <div className="venue-detail__payment-row">
+                <label className="venue-detail__payment-field">
+                  <span>Expiry</span>
+                  <input
+                    type="text"
+                    name="expiryDate"
+                    value={paymentDraft.expiryDate}
+                    onChange={handlePaymentFieldChange}
+                  />
+                </label>
+                <label className="venue-detail__payment-field">
+                  <span>CVC</span>
+                  <input
+                    type="text"
+                    name="securityCode"
+                    inputMode="numeric"
+                    value={paymentDraft.securityCode}
+                    onChange={handlePaymentFieldChange}
+                  />
+                </label>
+              </div>
+              <label className="venue-detail__payment-field">
+                <span>Billing Address</span>
+                <textarea
+                  name="billingAddress"
+                  rows={3}
+                  value={paymentDraft.billingAddress}
+                  onChange={handlePaymentFieldChange}
+                />
+              </label>
+
+              <div className="venue-detail__payment-actions">
+                <button
+                  className="venue-detail__secondary-action"
+                  type="button"
+                  onClick={handlePaymentBack}
+                >
+                  Back
+                </button>
+                <button className="venue-detail__payment-submit" type="submit">
+                  Confirm Payment
+                </button>
+              </div>
+            </form>
+
+            {quoteStatus && (
+              <div className="quote-status" role="status">
+                {quoteStatus}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </aside>
   )
@@ -263,22 +538,7 @@ export default function VenueDetailPage() {
         </section>
 
         <section className="venue-detail__section venue-detail__section--split">
-          <div>
-            <p className="venue-detail__eyebrow">Availability</p>
-            <h2 className="venue-detail__section-title">Available Dates</h2>
-            <ul className="venue-detail__dates">
-              {venue.all_available_dates.map((date) => (
-                <li key={date}>
-                  {new Intl.DateTimeFormat('en-US', {
-                    weekday: 'short',
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  }).format(new Date(`${date}T00:00:00`))}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <VenueBookingHighlights venue={venue} />
 
           <VenueQuotePanel key={venue.id} venue={venue} />
         </section>

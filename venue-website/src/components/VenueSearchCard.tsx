@@ -1,6 +1,12 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useAppSelector } from '../app/hooks'
+import {
+  getBookedDateKeysForVenue,
+  selectVenueBookings,
+} from '../features/bookings/bookingSlice'
 import type { VenueSearchResult } from '../types/venue'
 import { formatVenueCurrency } from '../utils/currency'
+import { getNextOpenDateKey, getTodayDateKey } from '../utils/dateKeys'
 import './style/VenueSearchCard.scss'
 
 interface VenueSearchCardProps {
@@ -17,14 +23,6 @@ const compactDateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
   month: 'long',
   timeZone: 'UTC',
-  year: 'numeric',
-})
-
-const longDateFormatter = new Intl.DateTimeFormat('en-US', {
-  day: 'numeric',
-  month: 'long',
-  timeZone: 'UTC',
-  weekday: 'long',
   year: 'numeric',
 })
 
@@ -138,9 +136,17 @@ const amenityIcons: Record<string, { Icon: IconComponent; label: string }> = {
 export default function VenueSearchCard({ venue }: VenueSearchCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const bookings = useAppSelector(selectVenueBookings)
+  const bookedDates = useMemo(
+    () => getBookedDateKeysForVenue(bookings, venue.id),
+    [bookings, venue.id],
+  )
   const detailsId = `${venue.id}-details`
   const formattedPrice = formatVenueCurrency(venue.price_per_day)
-  const nextAvailableDate = formatDate(venue.next_available_date, compactDateFormatter)
+  const nextAvailableDateKey = getNextOpenDateKey(bookedDates, getTodayDateKey())
+  const nextAvailableDate = nextAvailableDateKey
+    ? formatDate(nextAvailableDateKey, compactDateFormatter)
+    : 'No open dates'
 
   const images = [venue.thumbnail_url, ...venue.gallery_images]
   const totalImages = images.length
@@ -269,16 +275,18 @@ export default function VenueSearchCard({ venue }: VenueSearchCardProps) {
             </ul>
           </section>
 
-          <section className="venue-search-card__section" aria-labelledby={`${venue.id}-dates`}>
-            <h4 id={`${venue.id}-dates`}>Full Availability Calendar</h4>
-            <ul className="venue-search-card__dates">
-              {venue.all_available_dates.map((date) => (
-                <li key={date}>
-                  <span aria-hidden="true">🗓️</span>
-                  {formatDate(date, longDateFormatter)}
-                </li>
-              ))}
-            </ul>
+          <section className="venue-search-card__section" aria-labelledby={`${venue.id}-booking`}>
+            <h4 id={`${venue.id}-booking`}>Booking Details</h4>
+            <dl className="venue-search-card__booking-details">
+              <div>
+                <dt>Calendar</dt>
+                <dd>All future dates are open unless already booked.</dd>
+              </div>
+              <div>
+                <dt>Blocked dates</dt>
+                <dd>{bookedDates.length ? bookedDates.length : 'None yet'}</dd>
+              </div>
+            </dl>
           </section>
 
           <p className="venue-search-card__policy">{venue.cancellation_policy}</p>

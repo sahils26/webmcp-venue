@@ -143,21 +143,21 @@ export default function VenueDetailsModal({
             </ul>
           </section>
 
-          {/* Available dates */}
-          <section aria-labelledby="modal-dates-title" className="venue-modal__section">
-            <h3 id="modal-dates-title" className="venue-modal__section-title">Available Dates</h3>
-            <ul className="venue-modal__dates">
-              {venue.all_available_dates.map((date) => (
-                <li key={date} className="venue-modal__date">
-                  {new Intl.DateTimeFormat('en-US', {
-                    weekday: 'short',
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  }).format(new Date(date + 'T00:00:00'))}
-                </li>
-              ))}
-            </ul>
+          {/* Booking details */}
+          <section aria-labelledby="modal-booking-title" className="venue-modal__section">
+            <h3 id="modal-booking-title" className="venue-modal__section-title">
+              Booking Details
+            </h3>
+            <dl className="venue-modal__booking-details">
+              <div>
+                <dt>Calendar</dt>
+                <dd>All future dates are open unless already booked.</dd>
+              </div>
+              <div>
+                <dt>Confirmation</dt>
+                <dd>Payment locks the date and sends the confirmation document by email.</dd>
+              </div>
+            </dl>
           </section>
 
           {/* Cancellation policy */}

@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { callAgentTool, listAgentTools } from '../../lib/toolRegistry'
 import { renderWithProviders } from '../../tests/renderWithProviders'
 import type { AgentToolParams } from '../../types/agentTool'
@@ -48,7 +48,25 @@ async function callVenueTool(name: string, args: AgentToolParams): Promise<unkno
   return result
 }
 
+async function selectHomepageVenueAndDate(user: ReturnType<typeof userEvent.setup>) {
+  const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
+
+  await user.click(within(quoteSection).getByLabelText('Venue'))
+  await user.click(within(quoteSection).getByRole('option', { name: /The Grand Hall/ }))
+  await user.click(
+    within(quoteSection).getByRole('button', {
+      name: /June 15, 2026, available/,
+    }),
+  )
+
+  return quoteSection
+}
+
 describe('VenuePage', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('renders the venue card grid without the sequential showcase', () => {
     renderVenuePage()
 
@@ -190,10 +208,7 @@ describe('VenuePage', () => {
     const user = userEvent.setup()
     renderVenuePage()
 
-    const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
-    await user.clear(within(quoteSection).getByLabelText('Room Name'))
-    await user.type(within(quoteSection).getByLabelText('Room Name'), 'The Grand Hall')
-    await user.type(within(quoteSection).getByLabelText('Date'), '2026-06-15')
+    const quoteSection = await selectHomepageVenueAndDate(user)
     await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
     await user.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
 
@@ -204,21 +219,22 @@ describe('VenuePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('blocks quote submission when the room is unavailable', async () => {
+  it('keeps date selection locked until a venue is selected', async () => {
     const user = userEvent.setup()
     renderVenuePage()
 
     const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
-    await user.clear(within(quoteSection).getByLabelText('Room Name'))
-    await user.type(within(quoteSection).getByLabelText('Room Name'), 'The Grand Hall')
-    await user.type(within(quoteSection).getByLabelText('Date'), '2026-05-15')
+    expect(within(quoteSection).getByLabelText('Date')).toBeDisabled()
+    expect(
+      within(quoteSection).getAllByText('Select a venue first to unlock the booking calendar.')
+        .length,
+    ).toBeGreaterThan(0)
+
     await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
     await user.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      within(quoteSection).getByText(
-        'The Grand Hall is not available on 2026-05-15. Quote request was not sent.',
-      ),
+      within(quoteSection).getByText('Please select a venue from the list before choosing a date.'),
     ).toBeInTheDocument()
   })
 
@@ -240,7 +256,9 @@ describe('VenuePage', () => {
         currencyCode: 'EUR',
         formattedPricePerDay: '€1,100',
         hasProjector: true,
-        availableDates: ['2026-07-03', '2026-07-10', '2026-07-24'],
+        availableDates: [],
+        blockedDates: [],
+        availabilityNote: 'All future dates are available unless already booked.',
       },
     })
   })
@@ -260,17 +278,20 @@ describe('VenuePage', () => {
           location: 'Jena',
           capacity: 150,
           formattedPricePerDay: '€1,200',
-          nextAvailableDate: '2026-06-15',
+          availabilityNote: 'All future dates are available unless already booked.',
         }),
       ]),
     )
 
     await expect(
-      callVenueTool('list_available_venues', { date: '2026-06-15' }),
+      callVenueTool('list_available_venues', { date: '2030-06-15' }),
     ).resolves.toMatchObject({
       success: true,
-      date: '2026-06-15',
-      venues: [{ name: 'The Grand Hall', nextAvailableDate: '2026-06-15' }],
+      date: '2030-06-15',
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'The Grand Hall' }),
+        expect.objectContaining({ name: 'Garden Pavilion' }),
+      ]),
     })
   })
 
@@ -500,7 +521,7 @@ describe('VenuePage', () => {
       }),
     ).resolves.toMatchObject({ success: true, available: true })
 
-    expect(screen.getByLabelText('Room Name')).toHaveValue('The Grand Hall')
+    expect(screen.getByLabelText('Venue')).toHaveValue('The Grand Hall')
     expect(screen.getByLabelText('Date')).toHaveValue('2026-06-15')
     expect(screen.getByLabelText('Your Email')).toHaveValue('planner@example.com')
   })
@@ -562,7 +583,7 @@ describe('VenuePage', () => {
     const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
 
     await waitFor(() => {
-      expect(within(quoteSection).getByLabelText('Room Name')).toHaveValue('The Grand Hall')
+      expect(within(quoteSection).getByLabelText('Venue')).toHaveValue('The Grand Hall')
     })
     expect(within(quoteSection).getByLabelText('Date')).toHaveValue('2026-06-15')
     expect(within(quoteSection).getByLabelText('Your Email')).toHaveValue('planner@example.com')
@@ -588,15 +609,12 @@ describe('VenuePage', () => {
     ).resolves.toMatchObject({
       success: false,
       available: false,
-      message:
-        'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
+      message: 'Please choose today or a future date. Quote request form was not prepared.',
     })
 
-    expect(screen.getByLabelText('Room Name')).toHaveValue('')
+    expect(screen.getByLabelText('Venue')).toHaveValue('')
     expect(
-      screen.getByText(
-        'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
-      ),
+      screen.getByText('Please choose today or a future date. Quote request form was not prepared.'),
     ).toBeInTheDocument()
   })
 
@@ -621,7 +639,7 @@ describe('VenuePage', () => {
         'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
     })
 
-    expect(screen.getByLabelText('Room Name')).toHaveValue('')
+    expect(screen.getByLabelText('Venue')).toHaveValue('')
     expect(
       screen.getByText(
         'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party. Quote request form was not prepared.',

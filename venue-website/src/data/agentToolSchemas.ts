@@ -8,8 +8,8 @@ import type { JsonSchema } from '../types/agentTool'
  * - date: optional event date in yyyy-mm-dd format.
  *
  * Tool response:
- * - success true with all venues and their next available date when no date is supplied.
- * - success true with venues available on the supplied date when a valid date is supplied.
+ * - success true with all venues when no date is supplied.
+ * - success true with venues not blocked on the supplied future date.
  * - success false when a supplied date is invalid.
  */
 export const availableVenuesSchema: JsonSchema = {
@@ -178,7 +178,7 @@ export const checkAvailabilitySchema: JsonSchema = {
  *
  * Tool response:
  * - success true when the UI form was prepared.
- * - success false when the room is unknown, date is invalid, date is unavailable,
+ * - success false when the room is unknown, date is invalid, date is already booked,
  *   or a supplied event type does not suit the room.
  */
 export const quoteRequestSchema: JsonSchema = {

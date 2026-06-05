@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useAppDispatch } from '../app/hooks'
+import { useAppDispatch, useAppSelector } from '../app/hooks'
 import {
   availableVenuesSchema,
   checkAvailabilitySchema,
@@ -12,6 +12,10 @@ import {
 } from '../data/agentToolSchemas'
 import { venueSearchResults } from '../data/venueSearchResults'
 import { agentQueryRecorded } from '../features/agent/agentActivitySlice'
+import {
+  isVenueDateBooked,
+  selectVenueBookings,
+} from '../features/bookings/bookingSlice'
 import {
   quoteDraftPrepared,
   quoteFormHandoffRequested,
@@ -28,6 +32,7 @@ import {
   searchVenues,
 } from '../services/venueAvailability'
 import type { AgentToolParams } from '../types/agentTool'
+import type { RoomAvailabilityResult } from '../types/venue'
 
 function getStringParam(params: AgentToolParams | unknown, key: string): string {
   if (typeof params !== 'object' || params === null || Array.isArray(params)) {
@@ -38,8 +43,32 @@ function getStringParam(params: AgentToolParams | unknown, key: string): string 
   return typeof value === 'string' ? value : ''
 }
 
+function applyFrontendBookingBlock(
+  availability: RoomAvailabilityResult,
+  bookings: ReturnType<typeof selectVenueBookings>,
+): RoomAvailabilityResult {
+  const room = getRoomByName(availability.roomName)
+
+  if (
+    !room ||
+    !availability.success ||
+    !availability.available ||
+    !availability.date ||
+    !isVenueDateBooked(bookings, room.id, availability.date)
+  ) {
+    return availability
+  }
+
+  return {
+    ...availability,
+    available: false,
+    message: `${availability.roomName} is already booked on ${availability.date}.`,
+  }
+}
+
 export default function VenueAgentTools() {
   const dispatch = useAppDispatch()
+  const bookings = useAppSelector(selectVenueBookings)
   const location = useLocation()
   const lastMatchedEventTypeRef = useRef('')
   const currentVenue = venueSearchResults.find(
@@ -50,13 +79,28 @@ export default function VenueAgentTools() {
     {
       name: 'list_available_venues',
       description:
-        'Lists venue options for broad user questions like "which venues are available?" If a date is provided, returns only venues available on that date; otherwise returns all venues with their next available dates.',
+        'Lists venue options for broad user questions like "which venues are available?" If a future date is provided, returns venues not blocked on that date; otherwise returns all venues.',
       schema: availableVenuesSchema,
     },
     (params) => {
       const date = getStringParam(params, 'date')
       dispatch(agentQueryRecorded(date ? `Listing available venues on ${date}` : 'Listing venues'))
-      return listAvailableVenues(date)
+      const result = listAvailableVenues(date)
+
+      if (!result.success || !result.date) {
+        return result
+      }
+
+      const venues = result.venues.filter((venue) => {
+        const room = getRoomByName(venue.name)
+        return room ? !isVenueDateBooked(bookings, room.id, result.date) : true
+      })
+
+      return {
+        ...result,
+        venues,
+        message: `${venues.length} venue${venues.length === 1 ? ' is' : 's are'} available on ${result.date}.`,
+      }
     },
   )
 
@@ -101,7 +145,7 @@ export default function VenueAgentTools() {
     {
       name: 'get_room_details',
       description:
-        'Retrieves the capacity, pricing, and equipment details for a specific room at this event venue.',
+        'Retrieves the capacity, pricing, equipment details, and current booking note for a specific room at this event venue.',
       schema: roomDetailsSchema,
     },
     (params) => {
@@ -109,7 +153,17 @@ export default function VenueAgentTools() {
       const roomInfo = getRoomByName(roomName)
       dispatch(agentQueryRecorded(roomInfo?.name ?? roomName))
       if (roomInfo) {
-        return { success: true, data: roomInfo }
+        return {
+          success: true,
+          data: {
+            ...roomInfo,
+            availableDates: [],
+            blockedDates: bookings
+              .filter((booking) => booking.venueId === roomInfo.id)
+              .map((booking) => booking.date),
+            availabilityNote: 'All future dates are available unless already booked.',
+          },
+        }
       }
       return {
         success: false,
@@ -130,7 +184,10 @@ export default function VenueAgentTools() {
       const date = getStringParam(params, 'date')
       const email = getStringParam(params, 'email')
       const eventType = getStringParam(params, 'eventType') || lastMatchedEventTypeRef.current
-      const availability = getRoomAvailability(roomName, date, eventType)
+      const availability = applyFrontendBookingBlock(
+        getRoomAvailability(roomName, date, eventType),
+        bookings,
+      )
       if (availability.matchedEventType) {
         lastMatchedEventTypeRef.current = availability.matchedEventType
       }
@@ -180,7 +237,10 @@ export default function VenueAgentTools() {
       const roomName = getStringParam(params, 'roomName') || currentVenue?.name || ''
       const date = getStringParam(params, 'date')
       const eventType = getStringParam(params, 'eventType') || lastMatchedEventTypeRef.current
-      const availability = getRoomAvailability(roomName, date, eventType)
+      const availability = applyFrontendBookingBlock(
+        getRoomAvailability(roomName, date, eventType),
+        bookings,
+      )
       if (availability.matchedEventType) {
         lastMatchedEventTypeRef.current = availability.matchedEventType
       }

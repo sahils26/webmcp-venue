@@ -6,7 +6,7 @@ import {
 } from '../data/eventTypes'
 import type { RoomAvailabilityResult, VenueRoom, VenueSearchResult } from '../types/venue'
 import { formatVenueCurrency, VENUE_CURRENCY_CODE } from '../utils/currency'
-import { normalizeDateKey } from '../utils/dateKeys'
+import { getTodayDateKey, normalizeDateKey } from '../utils/dateKeys'
 
 type CapacitySearch = {
   guestCount: number | null
@@ -154,7 +154,7 @@ function toVenueRoom(venue: VenueSearchResult): VenueRoom {
     currencyCode: VENUE_CURRENCY_CODE,
     formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
     hasProjector: hasProjector(venue),
-    availableDates: venue.all_available_dates,
+    availableDates: [],
   }
 }
 
@@ -299,8 +299,9 @@ function buildVenueSummary(venue: VenueSearchResult, scoredVenue: ScoredVenue, f
     location: venue.location,
     capacity: venue.capacity,
     formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
-    nextAvailableDate: venue.next_available_date,
-    availableDates: venue.all_available_dates,
+    nextAvailableDate: getTodayDateKey(),
+    availableDates: [],
+    availabilityNote: 'All future dates are available unless already booked.',
     eventTypes: venue.event_types,
     amenities: venue.detailed_amenities.map((amenity) => amenity.label),
     matchedAmenities: scoredVenue.matchedAmenities,
@@ -433,7 +434,7 @@ function scoreVenue(venue: VenueSearchResult, criteria: VenueSearchCriteria): Sc
   const matchedAmenities = criteria.requiredAmenities.filter((amenity) =>
     venueAmenityIds.includes(amenity),
   )
-  const dateMatches = !criteria.date || venue.all_available_dates.includes(criteria.date)
+  const dateMatches = !criteria.date || criteria.date >= getTodayDateKey()
   const amenitiesMatch = matchedAmenities.length === criteria.requiredAmenities.length
   const capacityMatches = matchesCapacity(venue.capacity, criteria.capacity)
   const eventTypeMatches = criteria.eventTypeId
@@ -480,9 +481,7 @@ export function listAvailableVenues(rawDate?: unknown) {
     }
   }
 
-  const matchingVenues = date
-    ? venueSearchResults.filter((venue) => venue.all_available_dates.includes(date))
-    : venueSearchResults
+  const matchingVenues = date && date < getTodayDateKey() ? [] : venueSearchResults
 
   return {
     success: true,
@@ -492,13 +491,14 @@ export function listAvailableVenues(rawDate?: unknown) {
       location: venue.location,
       capacity: venue.capacity,
       formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
-      nextAvailableDate: venue.next_available_date,
-      availableDates: venue.all_available_dates,
+      nextAvailableDate: getTodayDateKey(),
+      availableDates: [],
+      availabilityNote: 'All future dates are available unless already booked.',
       eventTypes: venue.event_types,
     })),
     message: date
       ? `${matchingVenues.length} venue${matchingVenues.length === 1 ? ' is' : 's are'} available on ${date}.`
-      : 'Here are the available venues and their next available dates.',
+      : 'Here are the venues. All future dates are available unless already booked.',
   }
 }
 
@@ -508,7 +508,8 @@ function toEventTypeSummary(venue: VenueSearchResult) {
     location: venue.location,
     capacity: venue.capacity,
     formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
-    nextAvailableDate: venue.next_available_date,
+    nextAvailableDate: getTodayDateKey(),
+    availabilityNote: 'All future dates are available unless already booked.',
     eventTypes: venue.event_types,
     eventTypeLabels: venue.event_types.map(getEventTypeLabel),
     description: venue.description,
@@ -704,6 +705,17 @@ export function getRoomAvailability(
     }
   }
 
+  if (date < getTodayDateKey()) {
+    return {
+      success: true,
+      roomName,
+      date,
+      available: false,
+      ...eventTypeFields,
+      message: 'Please choose today or a future date.',
+    }
+  }
+
   if (eventType && !matchedEventType) {
     return {
       success: false,
@@ -719,18 +731,6 @@ export function getRoomAvailability(
   const eventTypeSuitable = matchedEventType
     ? venue.event_types.includes(matchedEventType)
     : undefined
-
-  if (!venue.all_available_dates.includes(date)) {
-    return {
-      success: true,
-      roomName,
-      date,
-      available: false,
-      ...eventTypeFields,
-      ...(matchedEventType ? { eventTypeSuitable } : {}),
-      message: `${roomName} is not available on ${date}.`,
-    }
-  }
 
   if (matchedEventType && !eventTypeSuitable) {
     return {

@@ -7,6 +7,7 @@ import {
   resolveRoomName,
   searchVenues,
 } from '../venueAvailability'
+import { getTodayDateKey } from '../../utils/dateKeys'
 
 describe('venue availability service', () => {
   it('resolves room names case-insensitively', () => {
@@ -23,21 +24,21 @@ describe('venue availability service', () => {
       currencyCode: 'EUR',
       formattedPricePerDay: '€1,100',
       hasProjector: true,
-      availableDates: ['2026-07-03', '2026-07-10', '2026-07-24'],
+      availableDates: [],
     })
   })
 
-  it('marks a date outside the JSON availability list as unavailable', () => {
-    expect(getRoomAvailability('Grand Hall', '2026-05-15')).toMatchObject({
+  it('marks a future date outside the old JSON availability list as available', () => {
+    expect(getRoomAvailability('Grand Hall', '2030-05-15')).toMatchObject({
       success: true,
       roomName: 'The Grand Hall',
-      date: '2026-05-15',
-      available: false,
-      message: 'The Grand Hall is not available on 2026-05-15.',
+      date: '2030-05-15',
+      available: true,
+      message: 'The Grand Hall is available on 2030-05-15.',
     })
   })
 
-  it('marks a JSON-listed available date as available', () => {
+  it('marks a valid future date as available', () => {
     expect(getRoomAvailability('Grand Hall', '2026-06-15')).toMatchObject({
       success: true,
       roomName: 'The Grand Hall',
@@ -76,7 +77,7 @@ describe('venue availability service', () => {
     expect(result).toMatchObject({
       success: true,
       date: '',
-      message: 'Here are the available venues and their next available dates.',
+      message: 'Here are the venues. All future dates are available unless already booked.',
     })
     expect(result.venues).toEqual(
       expect.arrayContaining([
@@ -85,24 +86,21 @@ describe('venue availability service', () => {
           location: 'Jena',
           capacity: 150,
           formattedPricePerDay: '€1,200',
-          nextAvailableDate: '2026-06-15',
+          nextAvailableDate: getTodayDateKey(),
+          availabilityNote: 'All future dates are available unless already booked.',
         }),
       ]),
     )
   })
 
-  it('filters available venue options by date', () => {
-    expect(listAvailableVenues('2026-06-15')).toMatchObject({
+  it('returns every venue for a future date unless frontend bookings block it', () => {
+    expect(listAvailableVenues('2030-06-15')).toMatchObject({
       success: true,
-      date: '2026-06-15',
-      venues: [
-        {
-          name: 'The Grand Hall',
-          nextAvailableDate: '2026-06-15',
-        },
-      ],
-      message: '1 venue is available on 2026-06-15.',
+      date: '2030-06-15',
+      message: '5 venues are available on 2030-06-15.',
     })
+
+    expect(listAvailableVenues('2030-06-15').venues).toHaveLength(5)
   })
 
   it('returns a helpful error for unknown rooms', () => {

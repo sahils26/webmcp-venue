@@ -1,12 +1,14 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit'
 import { setupListeners } from '@reduxjs/toolkit/query'
 import { agentActivityReducer } from '../features/agent/agentActivitySlice'
+import { bookingReducer } from '../features/bookings/bookingSlice'
 import { quoteReducer } from '../features/quote/quoteSlice'
 import { api } from '../services/api/baseApi'
 
 export const rootReducer = combineReducers({
   [api.reducerPath]: api.reducer,
   agentActivity: agentActivityReducer,
+  bookings: bookingReducer,
   quote: quoteReducer,
 })
 

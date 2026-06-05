@@ -26,7 +26,7 @@ export interface VenueRoom {
   /** Whether built-in projector equipment is available in the room. */
   hasProjector: boolean
 
-  /** Bookable dates from the JSON catalog. */
+  /** Deprecated finite date list. Current booking flow treats future dates as open unless booked. */
   availableDates: string[]
 }
 
@@ -166,7 +166,7 @@ export interface LocalizedVenueSearchResult {
   /** Full amenity set for the expanded state without translated labels. */
   detailed_amenities: DetailedVenueAmenity[]
 
-  /** Available dates in yyyy-mm-dd format. */
+  /** Legacy seeded dates; the booking UI now treats future dates as open unless booked. */
   all_available_dates: string[]
 
   /** Additional photo paths from the venue payload. */
@@ -241,7 +241,7 @@ export interface VenueSearchResult {
   /** Full amenity set for the expanded state. */
   detailed_amenities: TranslatedVenueAmenity[]
 
-  /** Available dates in yyyy-mm-dd format. */
+  /** Legacy seeded dates; the booking UI now treats future dates as open unless booked. */
   all_available_dates: string[]
 
   /** Additional photo paths from the venue payload. */

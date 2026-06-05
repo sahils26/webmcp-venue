@@ -7,19 +7,19 @@
 
   &__inner {
     display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
-    gap: 56px;
-    align-items: center;
+    gap: 32px;
     max-width: 1200px;
     margin: 0 auto;
   }
 
-  &__copy {
-    max-width: 540px;
+  &__header {
+    display: grid;
+    gap: 12px;
+    max-width: 760px;
   }
 
   &__eyebrow {
-    margin: 0 0 14px;
+    margin: 0;
     color: theme.$theme-color;
     font-size: 0.8rem;
     font-weight: 700;
@@ -28,7 +28,7 @@
   }
 
   &__title {
-    margin: 0 0 20px;
+    margin: 0;
     color: theme.$color-heading;
     font-size: clamp(1.7rem, 2.8vw, 2.35rem);
     font-weight: 900;
@@ -42,17 +42,32 @@
     line-height: 1.75;
   }
 
+  &__workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.36fr) minmax(260px, 0.64fr);
+    gap: 28px;
+    align-items: start;
+  }
+
+  &__form-panel {
+    @include theme.panel-surface(30px, theme.$color-surface);
+  }
+
+  &__support {
+    padding: 6px 0 0;
+  }
+
   &__details {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    margin: 28px 0 0;
+    gap: 12px;
+    margin: 0;
 
     div {
-      padding: 16px;
-      border: 1px solid rgba(theme.$color-ink, 0.1);
-      border-radius: theme.$radius-control;
-      background: rgba(theme.$color-surface, 0.74);
+      display: grid;
+      gap: 4px;
+      min-height: 72px;
+      padding: 0 0 12px;
+      border-bottom: 1px solid rgba(theme.$color-ink, 0.12);
     }
 
     dt {
@@ -72,10 +87,6 @@
       line-height: 1.35;
     }
   }
-
-  &__form-panel {
-    @include theme.panel-surface(32px, theme.$color-surface);
-  }
 }
 
 @media (max-width: theme.$breakpoint-mobile) {
@@ -83,8 +94,11 @@
     padding: 58px 16px;
 
     &__inner {
+      gap: 28px;
+    }
+
+    &__workspace {
       grid-template-columns: 1fr;
-      gap: 36px;
     }
 
     &__details {

@@ -5,77 +5,8 @@
  *
  * Old two-column layout styles have been removed. This file now only contains
  * styles shared across multiple landing components:
- *   - .quote-form / .quote-status  → shared by quote sections and modal
  *   - .agent-status                → retained for future use / Redux tracking
  */
-
-/* ── Quote request form ── */
-.quote-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-
-  &__field {
-    display: grid;
-    gap: 6px;
-    color: #374151;
-    font-size: 0.95rem;
-    font-weight: 700;
-
-    input {
-      width: 100%;
-      min-height: 42px;
-      padding: 0.65rem 0.75rem;
-      border: 1px solid rgba(theme.$color-border-text, 0.24);
-      border-radius: theme.$radius-control;
-      background: theme.$color-surface;
-      color: theme.$color-ink;
-      font: inherit;
-      box-sizing: border-box;
-
-      &:focus {
-        border-color: theme.$theme-color;
-        box-shadow: 0 0 0 3px rgba(theme.$theme-color, 0.14);
-        outline: none;
-      }
-
-      &:read-only {
-        background: theme.$color-surface-muted;
-        color: theme.$color-muted-strong;
-        cursor: not-allowed;
-      }
-    }
-  }
-
-  &__hint {
-    color: theme.$color-muted;
-    font-size: 0.8rem;
-    font-weight: 600;
-    line-height: 1.45;
-  }
-
-  &__submit {
-    @include theme.themed-action;
-
-    padding: 0.75rem 1rem;
-
-    &:focus-visible {
-      @include theme.focus-ring;
-    }
-  }
-}
-
-/* ── Quote request status message ── */
-.quote-status {
-  margin-top: 16px;
-  padding: 10px 12px;
-  border: 1px solid rgba(theme.$color-success-border, 0.24);
-  border-radius: theme.$radius-control;
-  background: theme.$color-success-bg;
-  color: theme.$color-success;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
 
 /* ── Agent activity status (retained for Redux tracking, not rendered in v2 UI) ── */
 .agent-status {
@@ -93,5 +24,41 @@
 
   &--active {
     color: theme.$theme-color-dark;
+  }
+}
+
+.venue-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  display: grid;
+  gap: 4px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px 18px;
+  border: 1px solid rgba(theme.$color-success-border, 0.28);
+  border-radius: theme.$radius-control;
+  background: theme.$color-success-bg;
+  box-shadow: theme.$shadow-chat;
+  color: theme.$color-success;
+
+  strong {
+    font-size: 0.96rem;
+    font-weight: 900;
+    line-height: 1.25;
+  }
+
+  span {
+    color: theme.$color-muted-strong;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: theme.$breakpoint-mobile) {
+  .venue-toast {
+    right: 16px;
+    bottom: 16px;
   }
 }
