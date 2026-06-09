@@ -5,7 +5,7 @@ from playwright.sync_api import sync_playwright
 logger = logging.getLogger(__name__)
 
 class WebMCPClient:
-    def __init__(self, headless=True, url="https://localhost:5173"):
+    def __init__(self, headless=True, url="http://localhost:5173"):
         self.headless = headless
         self.url = url
         self.playwright = None
