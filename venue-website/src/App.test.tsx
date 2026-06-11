@@ -81,51 +81,23 @@ describe('App', () => {
   it('fills the detail-page quote form through the chat tool flow', async () => {
     const user = userEvent.setup()
 
-    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce(
-          createChatResponse({
-            choices: [
-              {
-                message: {
-                  role: 'assistant',
-                  content: null,
-                  tool_calls: [
-                    {
-                      id: 'availability-call-1',
-                      function: {
-                        name: 'check_availability',
-                        arguments: '{"date":"2026-06-15"}',
-                      },
-                    },
-                    {
-                      id: 'quote-call-1',
-                      function: {
-                        name: 'prepare_quote_request',
-                        arguments: '{"date":"2026-06-15","email":"planner@example.com"}',
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          }),
-        )
-        .mockResolvedValueOnce(
-          createChatResponse({
-            choices: [
-              {
-                message: {
-                  role: 'assistant',
-                  content: 'I prepared the detail-page quote form for your review.',
-                },
-              },
-            ],
-          }),
-        ),
+      vi.fn().mockResolvedValueOnce(
+        createChatResponse({
+          response: 'I prepared the detail-page quote form for your review.',
+          tool_calls: [
+            {
+              name: 'check_availability',
+              arguments: { date: '2026-06-15' },
+            },
+            {
+              name: 'prepare_quote_request',
+              arguments: { date: '2026-06-15', email: 'planner@example.com' },
+            },
+          ],
+        }),
+      ),
     )
 
     renderAppAt('/venues/grand-hall')
@@ -148,7 +120,7 @@ describe('App', () => {
     expect(screen.getByLabelText('spaces360 Assistant minimized')).toBeInTheDocument()
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(2)
+      expect(fetch).toHaveBeenCalledTimes(1)
     })
   })
 })

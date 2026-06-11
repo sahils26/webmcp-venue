@@ -26,52 +26,49 @@ Instead of fragile HTML scraping or complex browser automation, the venue websit
 | **Venue Website** | React + TypeScript + Vite + SCSS |
 | **WebMCP Integration** | `navigator.modelContext` (Chrome 146+ Beta) |
 | **AI Agent** | Python + LangGraph + LangChain |
-| **LLM** | Anthropic Claude Sonnet 4 |
+| **LLM** | Mistral |
 | **Browser Automation** | Playwright |
-| **Package Management** | `uv` (Python), `pnpm` (Node) |
+| **Package Management** | Python `venv` + `pip`, npm |
 
 ---
 
 ##  Quick Start
 
 ### Prerequisites
-- **Chrome Beta 146+** with WebMCP flags enabled ([setup guide](docs/setup-guide.md))
-- **Python 3.11+** with `uv` installed
-- **Node.js 18+** with `pnpm`
-- **API key**
+- **Python 3.11+**
+- **Node.js 18+**
+- **Mistral API key**
 
 ### 1. Clone & Install
 ```bash
 git clone https://github.com/yourusername/webmcp-venue-agent.git
 cd webmcp-venue-agent
 
-# Install venue website dependencies
-cd venue-website
-pnpm install
+# Install frontend dependencies
+cd venue-website && npm install && cd ..
 
-# Install agent dependencies
-cd ../agent
-uv pip install -r requirements.txt
+# Create agent/.venv, install Python dependencies and Playwright Chromium
+./scripts/setup-agent.sh
 ```
 
 ### 2. Configure
 ```bash
-# Add your API key
-cd agent
-cp .env
+# Edit agent/.env
+MISTRAL_API_KEY=your-key-here
+VENUE_WEBSITE_URL=https://127.0.0.1:5173
 ```
 
 ### 3. Run
 ```bash
-# Terminal 1: Start venue website
-cd venue-website
-pnpm dev
-# → http://localhost:5173
+./scripts/start-dev.sh
 
-# Terminal 2: Run agent
-cd agent
-python src/main.py
+# Frontend: https://127.0.0.1:5173
+# Agent health: http://127.0.0.1:8001/health
 ```
+
+The browser frontend sends chat requests to `/agent-api/chat`. Vite proxies that
+path to the Python agent on port `8001`, so no LLM API key is exposed to the
+frontend.
 
 ---
 
@@ -142,6 +139,4 @@ This is a research prototype. Issues and PRs welcome for:
 - [Chrome Setup Guide](docs/setup-guide.md)
 
 ---
-
-
 
