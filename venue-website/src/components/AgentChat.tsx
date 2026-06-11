@@ -1,9 +1,4 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
-import {
-  callAgentTool,
-  formatToolResultForModel,
-  getOpenAIToolDefinitions,
-} from '../lib/toolRegistry'
 import './style/AgentChat.scss'
 
 type ChatState = 'closed' | 'minimized' | 'open'
@@ -76,16 +71,7 @@ interface ChatRequestMessage {
 /**
  * Minimal response contract used from the OpenAI-compatible provider.
  */
-interface ChatCompletionResponse {
-  choices?: Array<{
-    message?: AssistantCompletionMessage
-  }>
-  error?: {
-    message?: string
-  }
-}
 
-const MAX_TOOL_STEPS = 8
 const TOOL_SYNTAX_LEAK_FALLBACK =
   'I can help with that. Please share your event date, and I can check which venues are available. If you do not have a date yet, I can show the current venue options and their next available dates.'
 const TOOL_CALL_ERROR_FALLBACK =
@@ -150,9 +136,6 @@ function createMessage(
   }
 }
 
-function isToolArgumentRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 /**
  * Parses raw JSON arguments returned by the model for a tool call.
@@ -160,18 +143,7 @@ function isToolArgumentRecord(value: unknown): value is Record<string, unknown> 
  * @param rawArguments - JSON string from toolCall.function.arguments.
  * @returns Parsed object, or an empty object when arguments are missing or invalid.
  */
-function parseToolArguments(rawArguments?: string): Record<string, unknown> {
-  if (!rawArguments) {
-    return {}
-  }
 
-  try {
-    const parsed = JSON.parse(rawArguments) as unknown
-    return isToolArgumentRecord(parsed) ? parsed : {}
-  } catch {
-    return {}
-  }
-}
 
 /**
  * Calls the OpenAI-compatible chat completion endpoint with registered tools.
@@ -184,38 +156,34 @@ function parseToolArguments(rawArguments?: string): Record<string, unknown> {
  */
 async function requestChatCompletion(
   messages: ChatRequestMessage[],
-  tools: ReturnType<typeof getOpenAIToolDefinitions>,
   signal: AbortSignal,
 ): Promise<AssistantCompletionMessage | undefined> {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY
+  const userMessages = messages.filter((m) => m.role === 'user')
+  const latestUserMessage = userMessages[userMessages.length - 1]
 
-  if (!apiKey) {
-    throw new Error('Missing VITE_GROQ_API_KEY in your local environment.')
-  }
-
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await fetch('http://127.0.0.1:8001/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
     },
     signal,
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages,
-      ...(tools.length ? { tools, tool_choice: 'auto' } : {}),
+      message: latestUserMessage?.content ?? '',
     }),
   })
 
-  const data = (await response.json()) as ChatCompletionResponse
-
-  if (!response.ok || data.error) {
-    throw new Error(data.error?.message ?? 'The assistant request failed.')
+  if (!response.ok) {
+    throw new Error('Backend agent request failed.')
   }
 
-  return data.choices?.[0]?.message
-}
+  const data = await response.json()
 
+  return {
+    role: 'assistant',
+    content: data.response,
+  }
+}
+  
 /**
  * Normalizes unknown caught values into a user-visible error message.
  *
@@ -291,65 +259,36 @@ export default function AgentChat({ minimizeRequestKey = 0, pageContext }: Agent
     setToolStatus('')
 
     try {
-      const tools = getOpenAIToolDefinitions()
       const chatMessages: ChatRequestMessage[] = [
-        SYSTEM_MESSAGE,
-        ...(pageContext ? [{ role: 'system' as const, content: pageContext }] : []),
-        ...nextMessages.map(({ role, content }) => ({ role, content })),
-      ]
+  SYSTEM_MESSAGE,
+  ...(pageContext ? [{ role: 'system' as const, content: pageContext }] : []),
+  ...nextMessages.map(({ role, content }) => ({ role, content })),
+]
 
-      // Allow the model to call tools and then continue reasoning with the results.
-      // The step limit prevents an accidental infinite tool-call loop.
-      for (let step = 0; step < MAX_TOOL_STEPS; step += 1) {
-        const assistantMessage = await requestChatCompletion(
-          chatMessages,
-          tools,
-          abortController.signal,
-        )
+const assistantMessage = await requestChatCompletion(
+  chatMessages,
+  abortController.signal,
+)
 
-        if (!isCurrentRun()) {
-          return
-        }
+if (!isCurrentRun()) {
+  return
+}
 
-        if (!assistantMessage) {
-          throw new Error('The assistant returned an empty response.')
-        }
+if (!assistantMessage) {
+  throw new Error('The assistant returned an empty response.')
+}
 
-        if (!assistantMessage.tool_calls?.length) {
-          setMessages((currentMessages) => [
-            ...currentMessages,
-            createMessage('assistant', getAssistantDisplayContent(assistantMessage.content)),
-          ])
-          setIsLoading(false)
-          return
-        }
+setMessages((currentMessages) => [
+  ...currentMessages,
+  createMessage(
+    'assistant',
+    getAssistantDisplayContent(assistantMessage.content),
+  ),
+])
 
-        chatMessages.push(assistantMessage)
+setIsLoading(false)
+return
 
-        for (const toolCall of assistantMessage.tool_calls) {
-          const toolName = toolCall.function.name
-          const toolArgs = parseToolArguments(toolCall.function.arguments)
-
-          setToolStatus(`Checking ${toolName.replaceAll('_', ' ')}...`)
-
-          const toolResult = await callAgentTool(toolName, toolArgs)
-
-          if (!isCurrentRun()) {
-            return
-          }
-
-          chatMessages.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            name: toolName,
-            content: formatToolResultForModel(toolResult),
-          })
-        }
-      }
-
-      throw new Error(
-        'The assistant used several tool rounds without producing a final answer. Try a narrower question.',
-      )
     } catch (error) {
       if (!isCurrentRun()) {
         return
