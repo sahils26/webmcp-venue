@@ -7,6 +7,13 @@ export default defineConfig({
   plugins: [react(), basicSsl()],
   server: {
     port: 5173,
+    proxy: {
+      '/agent-api': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/agent-api/, ''),
+      },
+    },
   },
   test: {
     css: true,

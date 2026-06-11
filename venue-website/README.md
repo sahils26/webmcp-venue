@@ -15,8 +15,9 @@ npm run dev
 
 Open [https://127.0.0.1:5173](https://127.0.0.1:5173).
 
-Create a `.env.local` file with `VITE_GROQ_API_KEY` before testing the chat
-completion flow.
+The chat widget calls `/agent-api/chat`, which Vite proxies to the Python agent
+at `http://127.0.0.1:8001`. Configure the Mistral key only in `agent/.env`; no
+LLM API key is needed in the frontend.
 
 ## Quality checks
 

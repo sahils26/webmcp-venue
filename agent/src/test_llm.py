@@ -1,9 +1,10 @@
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 from mistralai import Mistral
 
 # Load environment variables
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 # Read API key
 api_key = os.getenv("MISTRAL_API_KEY")

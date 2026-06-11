@@ -4,3 +4,6 @@ langchain-mistralai
 playwright
 python-dotenv
 pydantic
+fastapi
+uvicorn[standard]
+mistralai

@@ -355,45 +355,23 @@ describe('VenuePage', () => {
   it('minimizes the chat and scrolls to the filled homepage quote form', async () => {
     const user = userEvent.setup()
 
-    vi.stubEnv('VITE_GROQ_API_KEY', 'test-key')
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce(
-          createChatResponse({
-            choices: [
-              {
-                message: {
-                  role: 'assistant',
-                  content: null,
-                  tool_calls: [
-                    {
-                      id: 'quote-call-1',
-                      function: {
-                        name: 'prepare_quote_request',
-                        arguments:
-                          '{"roomName":"Grand Hall","date":"2026-06-15","email":"planner@example.com"}',
-                      },
-                    },
-                  ],
-                },
+      vi.fn().mockResolvedValueOnce(
+        createChatResponse({
+          response: 'I prepared the quote form. Please review it and submit when ready.',
+          tool_calls: [
+            {
+              name: 'prepare_quote_request',
+              arguments: {
+                roomName: 'Grand Hall',
+                date: '2026-06-15',
+                email: 'planner@example.com',
               },
-            ],
-          }),
-        )
-        .mockResolvedValueOnce(
-          createChatResponse({
-            choices: [
-              {
-                message: {
-                  role: 'assistant',
-                  content: 'I prepared the quote form. Please review it and submit when ready.',
-                },
-              },
-            ],
-          }),
-        ),
+            },
+          ],
+        }),
+      ),
     )
 
     renderAppAt()
@@ -417,7 +395,7 @@ describe('VenuePage', () => {
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(2)
+      expect(fetch).toHaveBeenCalledTimes(1)
     })
   })
 

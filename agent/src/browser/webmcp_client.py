@@ -1,17 +1,19 @@
 import json
 import logging
+import os
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
 
 class WebMCPClient:
-    def __init__(self, headless=True, url="http://localhost:5173"):
+    def __init__(self, headless=True, url=None):
         self.headless = headless
-        self.url = url
+        self.url = url or os.getenv("VENUE_WEBSITE_URL", "https://127.0.0.1:5173")
         self.playwright = None
         self.browser = None
         self.context = None
         self.page = None
+        self.tool_calls = []
 
     def start(self):
         self.playwright = sync_playwright().start()
@@ -63,7 +65,8 @@ class WebMCPClient:
                     return await tool.execute({json.dumps(args)});
                 }}
             """)
-            
+            self.tool_calls.append({"name": name, "arguments": args})
+
             # Format output as extremely simple text so Mistral doesn't get confused
             if isinstance(result, dict):
                 output = []
@@ -78,6 +81,14 @@ class WebMCPClient:
             return str(result)
         except Exception as e:
             return f"Error executing tool {name}: {str(e)}"
+
+    def reset_tool_calls(self):
+        self.tool_calls = []
+
+    def consume_tool_calls(self):
+        tool_calls = self.tool_calls
+        self.tool_calls = []
+        return tool_calls
 
     def stop(self):
         if self.browser:

@@ -1,4 +1,5 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { callAgentTool } from '../lib/toolRegistry'
 import './style/AgentChat.scss'
 
 type ChatState = 'closed' | 'minimized' | 'open'
@@ -22,56 +23,26 @@ interface ChatMessage {
   variant?: ChatMessageVariant
 }
 
-/**
- * Function call request returned by an OpenAI-compatible chat-completion response.
- */
-interface ToolCall {
-  /** Provider-generated id that must be echoed in the tool response message. */
-  id: string
-
-  /** Requested tool name and raw JSON arguments. */
-  function: {
-    name: string
-    arguments?: string
-  }
-}
-
-/**
- * Assistant message shape returned by the model.
- */
-interface AssistantCompletionMessage {
-  role: 'assistant'
-
-  /** Natural language response when the model is done calling tools. */
-  content?: string | null
-
-  /** One or more tool calls requested by the model. */
-  tool_calls?: ToolCall[]
-}
-
-/**
- * Message shape sent to the OpenAI-compatible chat-completion endpoint.
- */
 interface ChatRequestMessage {
-  role: 'system' | 'assistant' | 'user' | 'tool'
-
-  /** Text content for system, user, assistant, or tool messages. */
-  content?: string | null
-
-  /** Tool name included on tool response messages. */
-  name?: string
-
-  /** Tool call id included on tool response messages. */
-  tool_call_id?: string
-
-  /** Tool calls included when replaying assistant tool-call messages. */
-  tool_calls?: ToolCall[]
+  role: 'system' | 'assistant' | 'user'
+  content: string
 }
 
-/**
- * Minimal response contract used from the OpenAI-compatible provider.
- */
+interface BackendToolCall {
+  name: string
+  arguments?: Record<string, unknown>
+}
 
+interface BackendChatResponse {
+  response?: string
+  tool_calls?: BackendToolCall[]
+  detail?: string
+}
+
+const AGENT_API_BASE_URL = (import.meta.env.VITE_AGENT_API_BASE_URL ?? '/agent-api').replace(
+  /\/$/,
+  '',
+)
 const TOOL_SYNTAX_LEAK_FALLBACK =
   'I can help with that. Please share your event date, and I can check which venues are available. If you do not have a date yet, I can show the current venue options and their next available dates.'
 const TOOL_CALL_ERROR_FALLBACK =
@@ -136,54 +107,49 @@ function createMessage(
   }
 }
 
-
 /**
- * Parses raw JSON arguments returned by the model for a tool call.
+ * Calls the Python agent backend and mirrors its successful WebMCP actions in this tab.
  *
- * @param rawArguments - JSON string from toolCall.function.arguments.
- * @returns Parsed object, or an empty object when arguments are missing or invalid.
- */
-
-
-/**
- * Calls the OpenAI-compatible chat completion endpoint with registered tools.
- *
- * @param messages - Conversation messages, including system and tool messages.
- * @param tools - Tool definitions generated from the local registry.
+ * @param messages - Conversation messages, including system context.
  * @param signal - AbortSignal used to cancel stale requests.
- * @returns The assistant message returned by the provider.
- * @throws Error when the API key is missing or the provider returns an error.
+ * @param onToolCall - Callback used to display the current mirrored action.
+ * @returns The assistant response returned by the backend.
+ * @throws Error when the backend is unavailable or returns an invalid response.
  */
 async function requestChatCompletion(
   messages: ChatRequestMessage[],
   signal: AbortSignal,
-): Promise<AssistantCompletionMessage | undefined> {
-  const userMessages = messages.filter((m) => m.role === 'user')
-  const latestUserMessage = userMessages[userMessages.length - 1]
-
-  const response = await fetch('http://127.0.0.1:8001/chat', {
+  onToolCall: (toolName: string) => void,
+): Promise<string> {
+  const response = await fetch(`${AGENT_API_BASE_URL}/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     signal,
     body: JSON.stringify({
-      message: latestUserMessage?.content ?? '',
+      messages,
     }),
   })
 
+  const data = (await response.json().catch(() => ({}))) as BackendChatResponse
+
   if (!response.ok) {
-    throw new Error('Backend agent request failed.')
+    throw new Error(data.detail ?? 'Backend agent request failed.')
   }
 
-  const data = await response.json()
-
-  return {
-    role: 'assistant',
-    content: data.response,
+  for (const toolCall of data.tool_calls ?? []) {
+    onToolCall(toolCall.name)
+    await callAgentTool(toolCall.name, toolCall.arguments ?? {})
   }
+
+  if (!data.response?.trim()) {
+    throw new Error('The backend agent returned an empty response.')
+  }
+
+  return data.response
 }
-  
+
 /**
  * Normalizes unknown caught values into a user-visible error message.
  *
@@ -260,35 +226,28 @@ export default function AgentChat({ minimizeRequestKey = 0, pageContext }: Agent
 
     try {
       const chatMessages: ChatRequestMessage[] = [
-  SYSTEM_MESSAGE,
-  ...(pageContext ? [{ role: 'system' as const, content: pageContext }] : []),
-  ...nextMessages.map(({ role, content }) => ({ role, content })),
-]
+        SYSTEM_MESSAGE,
+        ...(pageContext ? [{ role: 'system' as const, content: pageContext }] : []),
+        ...nextMessages.map(({ role, content }) => ({ role, content })),
+      ]
 
-const assistantMessage = await requestChatCompletion(
-  chatMessages,
-  abortController.signal,
-)
+      const assistantResponse = await requestChatCompletion(
+        chatMessages,
+        abortController.signal,
+        (toolName) => setToolStatus(`Applying ${toolName.replaceAll('_', ' ')}...`),
+      )
 
-if (!isCurrentRun()) {
-  return
-}
+      if (!isCurrentRun()) {
+        return
+      }
 
-if (!assistantMessage) {
-  throw new Error('The assistant returned an empty response.')
-}
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        createMessage('assistant', getAssistantDisplayContent(assistantResponse)),
+      ])
 
-setMessages((currentMessages) => [
-  ...currentMessages,
-  createMessage(
-    'assistant',
-    getAssistantDisplayContent(assistantMessage.content),
-  ),
-])
-
-setIsLoading(false)
-return
-
+      setIsLoading(false)
+      return
     } catch (error) {
       if (!isCurrentRun()) {
         return
