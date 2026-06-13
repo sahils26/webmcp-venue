@@ -39,7 +39,8 @@ def main():
 
         print("\n=== Agent Ready! (type 'quit' to exit) ===")
         # We add a thread ID to maintain conversation memory
-        config = {"configurable": {"thread_id": "cli_thread"}, "recursion_limit": 15}
+        config = {"configurable": {"thread_id": "cli_thread"}, "recursion_limit": 10}
+
 
         while True:
             try:
@@ -53,15 +54,20 @@ def main():
             messages = {"messages": [HumanMessage(content=user_input)]}
 
             # Run the agent
-            for chunk in agent_executor.stream(messages, config=config):
-                for node, state in chunk.items():
-                    if node == "agent":
-                        msg = state["messages"][-1]
-                        if msg.content:
-                            print(f"\nAssistant: {msg.content}")
-                        elif hasattr(msg, "tool_calls") and msg.tool_calls:
-                            pass  # We already log this inside webmcp_client
-
+            try:
+                for chunk in agent_executor.stream(messages, config=config):
+                    for node, state in chunk.items():
+                        if node == "agent":
+                            msg = state["messages"][-1]
+                            if msg.content:
+                                print(f"\nAssistant: {msg.content}")
+                            elif hasattr(msg, "tool_calls") and msg.tool_calls:
+                                pass  # We already log this inside webmcp_client
+            except Exception as e:
+                if "429" in str(e) or "rate_limited" in str(e).lower():
+                    print("\nAssistant: Rate limit reached on the free API tier. Please wait 30 seconds and try again.")
+                else:
+                    print(f"\nAssistant: Something went wrong — {str(e)}")
     finally:
         import time; time.sleep(1)  # let pending async tasks finish before closing browser
         logger.info("Shutting down browser...")
