@@ -1,0 +1,170 @@
+@use '../../styles/theme';
+
+.availability-calendar {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid rgba(theme.$color-ink, 0.1);
+  border-radius: theme.$radius-control;
+  background: theme.$color-surface;
+
+  &--disabled {
+    background: linear-gradient(180deg, theme.$color-surface, theme.$color-surface-muted);
+  }
+
+  &__header {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    gap: 10px;
+    align-items: center;
+  }
+
+  &__month {
+    margin: 0;
+    color: theme.$color-heading;
+    font-size: 0.98rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-align: center;
+  }
+
+  &__nav {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(theme.$color-ink, 0.12);
+    border-radius: 8px;
+    background: theme.$color-surface-muted;
+    color: theme.$color-heading;
+    cursor: pointer;
+
+    span {
+      transform: translateY(-1px);
+      font-size: 1.35rem;
+      line-height: 1;
+    }
+
+    &:hover {
+      border-color: rgba(theme.$theme-color, 0.3);
+      color: theme.$theme-color;
+    }
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
+  }
+
+  &__weekdays,
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  &__weekdays {
+    color: theme.$color-muted;
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  &__day {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    aspect-ratio: 1;
+    border: 1px solid rgba(theme.$color-ink, 0.08);
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: theme.$color-muted;
+    cursor: not-allowed;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1;
+
+    &:focus-visible {
+      @include theme.focus-ring;
+    }
+
+    &--muted {
+      opacity: 0.45;
+    }
+
+    &--available {
+      border-color: rgba(#15803d, 0.28);
+      background: #ecfdf3;
+      color: #14532d;
+      cursor: pointer;
+    }
+
+    &--booked {
+      border-color: rgba(#b91c1c, 0.26);
+      background:
+        linear-gradient(
+          135deg,
+          transparent 47%,
+          rgba(#b91c1c, 0.35) 48%,
+          rgba(#b91c1c, 0.35) 52%,
+          transparent 53%
+        ),
+        #fef2f2;
+      color: #991b1b;
+      cursor: not-allowed;
+    }
+
+    &--selected {
+      border-color: theme.$theme-color;
+      background: theme.$theme-color;
+      color: theme.$theme-color-contrast;
+      box-shadow: 0 0 0 3px rgba(theme.$theme-color, 0.14);
+    }
+
+    &:disabled {
+      pointer-events: none;
+    }
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    color: theme.$color-muted;
+    font-size: 0.78rem;
+    font-weight: 800;
+
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+
+  &__legend-mark {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+
+    &--available {
+      background: #22c55e;
+    }
+
+    &--booked {
+      background: #ef4444;
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: theme.$color-surface-muted;
+    color: theme.$color-muted-strong;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+}

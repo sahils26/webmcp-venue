@@ -1,7 +1,12 @@
 import { venueSearchResults } from '../data/venueSearchResults'
+import {
+  EVENT_TYPES,
+  getEventTypeLabel,
+  resolveEventTypeId,
+} from '../data/eventTypes'
 import type { RoomAvailabilityResult, VenueRoom, VenueSearchResult } from '../types/venue'
 import { formatVenueCurrency, VENUE_CURRENCY_CODE } from '../utils/currency'
-import { normalizeDateKey } from '../utils/dateKeys'
+import { getTodayDateKey, normalizeDateKey } from '../utils/dateKeys'
 
 type CapacitySearch = {
   guestCount: number | null
@@ -13,6 +18,7 @@ type CapacitySearch = {
 type VenueSearchCriteria = {
   query: string
   eventType: string
+  eventTypeId: string
   details: string
   date: string
   requiredAmenities: string[]
@@ -148,7 +154,7 @@ function toVenueRoom(venue: VenueSearchResult): VenueRoom {
     currencyCode: VENUE_CURRENCY_CODE,
     formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
     hasProjector: hasProjector(venue),
-    availableDates: venue.all_available_dates,
+    availableDates: [],
   }
 }
 
@@ -267,6 +273,7 @@ function inferAmenities(text: string): string[] {
 function buildVenueSearchText(venue: VenueSearchResult): string {
   const compactLabels = Object.values(venue.compact_amenity_labels)
   const detailedLabels = venue.detailed_amenities.map((amenity) => amenity.label)
+  const eventTypeLabels = venue.event_types.map(getEventTypeLabel)
 
   return [
     venue.name,
@@ -274,6 +281,8 @@ function buildVenueSearchText(venue: VenueSearchResult): string {
     venue.description,
     venue.dimensions,
     venue.cancellation_policy,
+    ...venue.event_types,
+    ...eventTypeLabels,
     ...venue.top_amenities,
     ...venue.detailed_amenities.map((amenity) => amenity.id),
     ...compactLabels,
@@ -290,8 +299,10 @@ function buildVenueSummary(venue: VenueSearchResult, scoredVenue: ScoredVenue, f
     location: venue.location,
     capacity: venue.capacity,
     formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
-    nextAvailableDate: venue.next_available_date,
-    availableDates: venue.all_available_dates,
+    nextAvailableDate: getTodayDateKey(),
+    availableDates: [],
+    availabilityNote: 'All future dates are available unless already booked.',
+    eventTypes: venue.event_types,
     amenities: venue.detailed_amenities.map((amenity) => amenity.label),
     matchedAmenities: scoredVenue.matchedAmenities,
     matchedTerms: scoredVenue.matchedTerms,
@@ -308,6 +319,7 @@ function normalizeSearchCriteria(rawCriteria?: unknown): VenueSearchCriteria {
   const eventType = getStringField(rawCriteria, 'eventType')
   const details = getStringField(rawCriteria, 'details')
   const combinedText = [query, eventType, details].filter(Boolean).join(' ')
+  const eventTypeId = resolveEventTypeId(eventType) ?? resolveEventTypeId(combinedText) ?? ''
   const inferredCapacity = inferCapacityFromText(combinedText)
   const rawDate = getStringField(rawCriteria, 'date')
   const requiredAmenities = [
@@ -321,6 +333,7 @@ function normalizeSearchCriteria(rawCriteria?: unknown): VenueSearchCriteria {
   return {
     query,
     eventType,
+    eventTypeId,
     details,
     date: rawDate ? normalizeDateKey(rawDate) : '',
     requiredAmenities: Array.from(new Set(requiredAmenities)),
@@ -333,14 +346,33 @@ function normalizeSearchCriteria(rawCriteria?: unknown): VenueSearchCriteria {
   }
 }
 
+function isEventTypePlanningTerm(term: string, eventTypeId: string): boolean {
+  return (
+    term === eventTypeId ||
+    tokenize(getEventTypeLabel(eventTypeId)).includes(term) ||
+    resolveEventTypeId(term) === eventTypeId
+  )
+}
+
 function getExpandedTerms(criteria: VenueSearchCriteria): {
   directTerms: string[]
   eventTypeTerms: string[]
   planningTerms: string[]
   allTerms: string[]
 } {
-  const eventTypeTerms = tokenize(criteria.eventType)
-  const planningTerms = tokenize([criteria.query, criteria.details].join(' '))
+  const eventTypeTerms = criteria.eventTypeId
+    ? Array.from(
+        new Set([
+          criteria.eventTypeId,
+          ...tokenize(getEventTypeLabel(criteria.eventTypeId)),
+          ...tokenize(criteria.eventType),
+        ]),
+      )
+    : tokenize(criteria.eventType)
+  const rawPlanningTerms = tokenize([criteria.query, criteria.details].join(' '))
+  const planningTerms = criteria.eventTypeId
+    ? rawPlanningTerms.filter((term) => !isEventTypePlanningTerm(term, criteria.eventTypeId))
+    : rawPlanningTerms
   const directTerms = Array.from(new Set([...planningTerms, ...eventTypeTerms]))
   const eventHints = directTerms.flatMap((term) => EVENT_TYPE_HINTS[term] ?? [])
   const allTerms = Array.from(new Set([...directTerms, ...eventHints].filter(Boolean)))
@@ -402,16 +434,19 @@ function scoreVenue(venue: VenueSearchResult, criteria: VenueSearchCriteria): Sc
   const matchedAmenities = criteria.requiredAmenities.filter((amenity) =>
     venueAmenityIds.includes(amenity),
   )
-  const dateMatches = !criteria.date || venue.all_available_dates.includes(criteria.date)
+  const dateMatches = !criteria.date || criteria.date >= getTodayDateKey()
   const amenitiesMatch = matchedAmenities.length === criteria.requiredAmenities.length
   const capacityMatches = matchesCapacity(venue.capacity, criteria.capacity)
-  const eventTypeMatches = eventTypeTerms.length === 0 || matchedEventTypeTerms.length > 0
+  const eventTypeMatches = criteria.eventTypeId
+    ? venue.event_types.includes(criteria.eventTypeId)
+    : eventTypeTerms.length === 0 || matchedEventTypeTerms.length > 0
   const planningTextMatches = planningTerms.length === 0 || matchedPlanningTerms.length > 0
   const textMatches = eventTypeMatches && planningTextMatches
   const capacityDistance = getCapacityDistance(venue.capacity, criteria.capacity)
   const score =
     matchedTerms.length * 12 +
     matchedAmenities.length * 14 +
+    (criteria.eventTypeId && eventTypeMatches ? 20 : 0) +
     (capacityMatches ? 30 : Math.max(0, 16 - Math.min(capacityDistance, 16))) +
     (dateMatches ? 12 : 0)
 
@@ -446,9 +481,7 @@ export function listAvailableVenues(rawDate?: unknown) {
     }
   }
 
-  const matchingVenues = date
-    ? venueSearchResults.filter((venue) => venue.all_available_dates.includes(date))
-    : venueSearchResults
+  const matchingVenues = date && date < getTodayDateKey() ? [] : venueSearchResults
 
   return {
     success: true,
@@ -458,12 +491,88 @@ export function listAvailableVenues(rawDate?: unknown) {
       location: venue.location,
       capacity: venue.capacity,
       formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
-      nextAvailableDate: venue.next_available_date,
-      availableDates: venue.all_available_dates,
+      nextAvailableDate: getTodayDateKey(),
+      availableDates: [],
+      availabilityNote: 'All future dates are available unless already booked.',
+      eventTypes: venue.event_types,
     })),
     message: date
       ? `${matchingVenues.length} venue${matchingVenues.length === 1 ? ' is' : 's are'} available on ${date}.`
-      : 'Here are the available venues and their next available dates.',
+      : 'Here are the venues. All future dates are available unless already booked.',
+  }
+}
+
+function toEventTypeSummary(venue: VenueSearchResult) {
+  return {
+    name: venue.name,
+    location: venue.location,
+    capacity: venue.capacity,
+    formattedPricePerDay: formatVenueCurrency(venue.price_per_day),
+    nextAvailableDate: getTodayDateKey(),
+    availabilityNote: 'All future dates are available unless already booked.',
+    eventTypes: venue.event_types,
+    eventTypeLabels: venue.event_types.map(getEventTypeLabel),
+    description: venue.description,
+  }
+}
+
+/**
+ * Recommends venues suitable for a specific event type, such as a wedding,
+ * conference, or workshop.
+ *
+ * When the event type is recognised, only venues whose suitability list includes
+ * it are returned. When the input is missing or unrecognised, the full catalog is
+ * returned along with the list of supported event types so the user can choose.
+ *
+ * @param rawEventType - Event type id, label, or synonym from the user/model.
+ * @returns Recommended venue summaries and a model-safe message.
+ */
+export function recommendVenuesByEventType(rawEventType?: unknown) {
+  const supportedEventTypes = EVENT_TYPES.map((eventType) => ({
+    id: eventType.id,
+    label: eventType.label,
+  }))
+  const requested = typeof rawEventType === 'string' ? rawEventType.trim() : ''
+  const eventTypeId = resolveEventTypeId(rawEventType)
+
+  if (!eventTypeId) {
+    return {
+      success: false,
+      eventType: requested,
+      matchedEventType: '',
+      venues: venueSearchResults.map(toEventTypeSummary),
+      supportedEventTypes,
+      message: requested
+        ? `We don't categorise venues for '${requested}'. Choose one of the supported event types, or browse all venues below.`
+        : 'Tell us the event type to get tailored recommendations, or browse all venues below.',
+    }
+  }
+
+  const eventTypeLabel = getEventTypeLabel(eventTypeId)
+  const matchingVenues = venueSearchResults.filter((venue) =>
+    venue.event_types.includes(eventTypeId),
+  )
+
+  if (matchingVenues.length === 0) {
+    return {
+      success: true,
+      eventType: requested,
+      matchedEventType: eventTypeId,
+      venues: venueSearchResults.map(toEventTypeSummary),
+      supportedEventTypes,
+      message: `No venue in the current catalog is tagged for ${eventTypeLabel}. Here are all venues so you can compare options.`,
+    }
+  }
+
+  return {
+    success: true,
+    eventType: requested,
+    matchedEventType: eventTypeId,
+    venues: matchingVenues.map(toEventTypeSummary),
+    supportedEventTypes,
+    message: `${matchingVenues.length} venue${
+      matchingVenues.length === 1 ? ' is' : 's are'
+    } well suited for ${eventTypeLabel}.`,
   }
 }
 
@@ -509,6 +618,8 @@ export function searchVenues(rawCriteria?: unknown) {
     success: true,
     query: criteria.query,
     eventType: criteria.eventType,
+    matchedEventType: criteria.eventTypeId,
+    eventTypeLabel: criteria.eventTypeId ? getEventTypeLabel(criteria.eventTypeId) : '',
     date: criteria.date,
     capacity: criteria.capacity,
     requiredAmenities: criteria.requiredAmenities,
@@ -516,7 +627,7 @@ export function searchVenues(rawCriteria?: unknown) {
     suggestionCount: exactMatches.length ? 0 : venues.length,
     venues,
     message: exactMatches.length
-      ? `${exactMatches.length} venue${exactMatches.length === 1 ? '' : 's'} match your request.`
+      ? `${exactMatches.length} venue${exactMatches.length === 1 ? ' matches' : 's match'} your request.`
       : "We don't have an exact venue match for every detail, but these are the closest suggestions from the current facilities.",
   }
 }
@@ -550,12 +661,27 @@ export function getRoomByName(rawRoomName: unknown): VenueRoom | undefined {
  *
  * @param rawRoomName - Room name from the UI or model.
  * @param rawDate - Date input in yyyy-mm-dd or supported natural language format.
+ * @param rawEventType - Optional event type id, label, or synonym to verify against venue fit.
  * @returns RoomAvailabilityResult with normalized values and display-safe message.
  */
-export function getRoomAvailability(rawRoomName: unknown, rawDate: unknown): RoomAvailabilityResult {
+export function getRoomAvailability(
+  rawRoomName: unknown,
+  rawDate: unknown,
+  rawEventType?: unknown,
+): RoomAvailabilityResult {
   const venue = findVenueByRoomName(rawRoomName)
   const roomName = venue?.name ?? resolveRoomName(rawRoomName)
   const date = normalizeDateKey(rawDate)
+  const eventType = typeof rawEventType === 'string' ? rawEventType.trim() : ''
+  const matchedEventType = eventType ? resolveEventTypeId(eventType) ?? '' : ''
+  const eventTypeLabel = matchedEventType ? getEventTypeLabel(matchedEventType) : ''
+  const eventTypeFields = eventType
+    ? {
+        eventType,
+        matchedEventType,
+        eventTypeLabel,
+      }
+    : {}
 
   if (!venue) {
     return {
@@ -563,6 +689,7 @@ export function getRoomAvailability(rawRoomName: unknown, rawDate: unknown): Roo
       roomName,
       date,
       available: false,
+      ...eventTypeFields,
       message: `Room '${roomName}' does not exist.`,
     }
   }
@@ -573,17 +700,47 @@ export function getRoomAvailability(rawRoomName: unknown, rawDate: unknown): Roo
       roomName,
       date,
       available: false,
+      ...eventTypeFields,
       message: 'Please provide a valid date for the quote request.',
     }
   }
 
-  if (!venue.all_available_dates.includes(date)) {
+  if (date < getTodayDateKey()) {
     return {
       success: true,
       roomName,
       date,
       available: false,
-      message: `${roomName} is not available on ${date}.`,
+      ...eventTypeFields,
+      message: 'Please choose today or a future date.',
+    }
+  }
+
+  if (eventType && !matchedEventType) {
+    return {
+      success: false,
+      roomName,
+      date,
+      available: false,
+      ...eventTypeFields,
+      eventTypeSuitable: false,
+      message: `We don't categorise venues for '${eventType}'. Please choose a supported event type or check availability without an event type.`,
+    }
+  }
+
+  const eventTypeSuitable = matchedEventType
+    ? venue.event_types.includes(matchedEventType)
+    : undefined
+
+  if (matchedEventType && !eventTypeSuitable) {
+    return {
+      success: true,
+      roomName,
+      date,
+      available: false,
+      ...eventTypeFields,
+      eventTypeSuitable: false,
+      message: `${roomName} is available on ${date}, but it is not tagged for ${eventTypeLabel}.`,
     }
   }
 
@@ -592,6 +749,10 @@ export function getRoomAvailability(rawRoomName: unknown, rawDate: unknown): Roo
     roomName,
     date,
     available: true,
-    message: `${roomName} is available on ${date}.`,
+    ...eventTypeFields,
+    ...(matchedEventType ? { eventTypeSuitable: true } : {}),
+    message: matchedEventType
+      ? `${roomName} is available on ${date} and is suitable for ${eventTypeLabel}.`
+      : `${roomName} is available on ${date}.`,
   }
 }

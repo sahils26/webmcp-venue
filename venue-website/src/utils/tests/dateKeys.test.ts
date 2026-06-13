@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeDateKey, toDateKey } from '../dateKeys'
+import {
+  addDaysToDateKey,
+  getNextOpenDateKey,
+  normalizeDateKey,
+  toDateKey,
+} from '../dateKeys'
 
 describe('date key utilities', () => {
   it('creates a normalized yyyy-mm-dd key for valid dates', () => {
@@ -21,5 +26,15 @@ describe('date key utilities', () => {
   it('returns an empty string for unsupported input', () => {
     expect(normalizeDateKey(undefined)).toBe('')
     expect(normalizeDateKey('next Friday')).toBe('')
+  })
+
+  it('adds days across month boundaries', () => {
+    expect(addDaysToDateKey('2026-05-31', 1)).toBe('2026-06-01')
+  })
+
+  it('finds the first unbooked date from a start date', () => {
+    expect(getNextOpenDateKey(['2026-06-03', '2026-06-04'], '2026-06-03')).toBe(
+      '2026-06-05',
+    )
   })
 })

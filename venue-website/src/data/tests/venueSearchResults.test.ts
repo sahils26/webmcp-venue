@@ -14,4 +14,11 @@ describe('venueSearchResults', () => {
       label: 'Professioneller Projektor & Leinwand',
     })
   })
+
+  it('exposes each venue suitability list as event_types', () => {
+    const [grandHall] = getVenueSearchResults('en')
+
+    expect(grandHall.event_types).toContain('wedding')
+    expect(grandHall.event_types).toContain('conference')
+  })
 })

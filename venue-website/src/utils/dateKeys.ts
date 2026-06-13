@@ -38,6 +38,51 @@ export function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
+export function getTodayDateKey(date = new Date()): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+export function addDaysToDateKey(dateKey: string, dayOffset: number): string {
+  const parsedDate = normalizeDateKey(dateKey)
+
+  if (!parsedDate) {
+    return ''
+  }
+
+  const [year, month, day] = parsedDate.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day + dayOffset))
+
+  return toDateKey(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
+}
+
+export function getNextOpenDateKey(
+  bookedDateKeys: string[],
+  startDateKey = getTodayDateKey(),
+  maxLookaheadDays = 3650,
+): string {
+  const startDate = normalizeDateKey(startDateKey)
+
+  if (!startDate) {
+    return ''
+  }
+
+  const bookedDateSet = new Set(bookedDateKeys)
+
+  for (let dayOffset = 0; dayOffset <= maxLookaheadDays; dayOffset += 1) {
+    const candidateDate = addDaysToDateKey(startDate, dayOffset)
+
+    if (candidateDate && !bookedDateSet.has(candidateDate)) {
+      return candidateDate
+    }
+  }
+
+  return ''
+}
+
 /**
  * Accepts model-friendly dates like "2026-05-15" or "May 15th, 2026"
  * and returns the yyyy-mm-dd key used by booking lookups.

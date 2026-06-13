@@ -1,3 +1,4 @@
+import { EVENT_TYPES } from './eventTypes'
 import type { JsonSchema } from '../types/agentTool'
 
 /**
@@ -7,8 +8,8 @@ import type { JsonSchema } from '../types/agentTool'
  * - date: optional event date in yyyy-mm-dd format.
  *
  * Tool response:
- * - success true with all venues and their next available date when no date is supplied.
- * - success true with venues available on the supplied date when a valid date is supplied.
+ * - success true with all venues when no date is supplied.
+ * - success true with venues not blocked on the supplied future date.
  * - success false when a supplied date is invalid.
  */
 export const availableVenuesSchema: JsonSchema = {
@@ -55,7 +56,7 @@ export const venueSearchSchema: JsonSchema = {
     eventType: {
       type: 'string',
       description:
-        "Event category such as conference, workshop, networking, gala, dinner, reception, wedding, seminar, training, launch, or offsite.",
+        "Optional event category if the user mentions one, such as birthday, conference, workshop, networking, gala, dinner, reception, wedding, seminar, training, launch, or offsite. Omit this when the user has not given an event type.",
     },
     guestCount: {
       type: 'number',
@@ -83,6 +84,31 @@ export const venueSearchSchema: JsonSchema = {
       },
     },
   },
+}
+
+/**
+ * Schema for recommend_venues_by_event_type.
+ *
+ * Expected model arguments:
+ * - eventType: the kind of event the user is planning. Accepts canonical ids
+ *   (e.g. "wedding", "conference"), labels, or close synonyms ("gala", "party").
+ *
+ * Tool response:
+ * - success true with venues tagged for the matched event type.
+ * - success false with the supported event types when the input is missing or
+ *   unrecognised; the full venue list is still returned for browsing.
+ */
+export const recommendByEventTypeSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    eventType: {
+      type: 'string',
+      description: `The event the user is planning. Supported event types: ${EVENT_TYPES.map(
+        (eventType) => eventType.id,
+      ).join(', ')}. Synonyms such as birthday, gala, party, meeting, or training are also accepted.`,
+    },
+  },
+  required: ['eventType'],
 }
 
 /**
@@ -115,9 +141,11 @@ export const roomDetailsSchema: JsonSchema = {
  * Expected model arguments:
  * - roomName: room name to evaluate.
  * - date: requested event date in yyyy-mm-dd format.
+ * - eventType: optional event type if the user has mentioned one.
  *
  * Tool response:
- * - RoomAvailabilityResult describing whether the date can be booked.
+ * - RoomAvailabilityResult describing whether the date can be booked and,
+ *   when supplied, whether the room is suitable for the event type.
  */
 export const checkAvailabilitySchema: JsonSchema = {
   type: 'object',
@@ -130,6 +158,11 @@ export const checkAvailabilitySchema: JsonSchema = {
       type: 'string',
       description: 'The date to check in YYYY-MM-DD format.',
     },
+    eventType: {
+      type: 'string',
+      description:
+        'Optional event type from the conversation, such as birthday, wedding, conference, or workshop. Omit this when the user has not mentioned one.',
+    },
   },
   required: ['roomName', 'date'],
 }
@@ -141,10 +174,12 @@ export const checkAvailabilitySchema: JsonSchema = {
  * - roomName: room to prefill in the quote form.
  * - date: requested event date in yyyy-mm-dd format.
  * - email: planner email address to prefill.
+ * - eventType: optional event type if the user has mentioned one.
  *
  * Tool response:
  * - success true when the UI form was prepared.
- * - success false when the room is unknown, date is invalid, or date is unavailable.
+ * - success false when the room is unknown, date is invalid, date is already booked,
+ *   or a supplied event type does not suit the room.
  */
 export const quoteRequestSchema: JsonSchema = {
   type: 'object',
@@ -160,6 +195,11 @@ export const quoteRequestSchema: JsonSchema = {
     email: {
       type: 'string',
       description: 'The planner email address for the quote request.',
+    },
+    eventType: {
+      type: 'string',
+      description:
+        'Optional event type from the conversation, such as birthday, wedding, conference, or workshop. Omit this when the user has not mentioned one.',
     },
   },
   required: ['roomName', 'date', 'email'],

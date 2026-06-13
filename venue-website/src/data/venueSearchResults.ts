@@ -70,6 +70,7 @@ function toVenueSearchResult(
     price_per_day: venue.price_per_day,
     thumbnail_url: images?.thumbnail ?? venue.thumbnail_url,
     top_amenities: venue.top_amenities,
+    event_types: venue.event_types ?? [],
     compact_amenity_labels: translation.compact_amenity_labels,
     next_available_date: venue.next_available_date,
     description: translation.description,

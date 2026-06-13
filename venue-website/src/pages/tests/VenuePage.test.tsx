@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { callAgentTool, listAgentTools } from '../../lib/toolRegistry'
 import { renderWithProviders } from '../../tests/renderWithProviders'
 import type { AgentToolParams } from '../../types/agentTool'
@@ -28,6 +28,7 @@ async function waitForVenueTools(): Promise<void> {
       expect.arrayContaining([
         'list_available_venues',
         'search_venues',
+        'recommend_venues_by_event_type',
         'get_room_details',
         'prepare_quote_request',
         'check_availability',
@@ -47,7 +48,25 @@ async function callVenueTool(name: string, args: AgentToolParams): Promise<unkno
   return result
 }
 
+async function selectHomepageVenueAndDate(user: ReturnType<typeof userEvent.setup>) {
+  const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
+
+  await user.click(within(quoteSection).getByLabelText('Venue'))
+  await user.click(within(quoteSection).getByRole('option', { name: /The Grand Hall/ }))
+  await user.click(
+    within(quoteSection).getByRole('button', {
+      name: /June 15, 2026, available/,
+    }),
+  )
+
+  return quoteSection
+}
+
 describe('VenuePage', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('renders the venue card grid without the sequential showcase', () => {
     renderVenuePage()
 
@@ -115,6 +134,27 @@ describe('VenuePage', () => {
     expect(within(venueGrid).getByRole('heading', { name: 'Garden Pavilion' })).toBeInTheDocument()
   })
 
+  it('filters venue cards by event type and clears it with reset', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
+
+    await user.selectOptions(screen.getByLabelText('Event type'), 'wedding')
+
+    let venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(screen.getByText('Showing 2 of 5 curated venues')).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'The Grand Hall' })).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'Garden Pavilion' })).toBeInTheDocument()
+    expect(
+      within(venueGrid).queryByRole('heading', { name: 'Skyline Loft' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Reset filters' }))
+
+    venueGrid = screen.getByRole('list', { name: 'All venues' })
+    expect(screen.getByText('5 curated venues in Jena, Germany')).toBeInTheDocument()
+    expect(within(venueGrid).getByRole('heading', { name: 'Skyline Loft' })).toBeInTheDocument()
+  })
+
   it('cycles venue card carousel images without leaving the venue list', async () => {
     const user = userEvent.setup()
     renderVenuePage()
@@ -168,10 +208,7 @@ describe('VenuePage', () => {
     const user = userEvent.setup()
     renderVenuePage()
 
-    const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
-    await user.clear(within(quoteSection).getByLabelText('Room Name'))
-    await user.type(within(quoteSection).getByLabelText('Room Name'), 'The Grand Hall')
-    await user.type(within(quoteSection).getByLabelText('Date'), '2026-06-15')
+    const quoteSection = await selectHomepageVenueAndDate(user)
     await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
     await user.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
 
@@ -182,21 +219,22 @@ describe('VenuePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('blocks quote submission when the room is unavailable', async () => {
+  it('keeps date selection locked until a venue is selected', async () => {
     const user = userEvent.setup()
     renderVenuePage()
 
     const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
-    await user.clear(within(quoteSection).getByLabelText('Room Name'))
-    await user.type(within(quoteSection).getByLabelText('Room Name'), 'The Grand Hall')
-    await user.type(within(quoteSection).getByLabelText('Date'), '2026-05-15')
+    expect(within(quoteSection).getByLabelText('Date')).toBeDisabled()
+    expect(
+      within(quoteSection).getAllByText('Select a venue first to unlock the booking calendar.')
+        .length,
+    ).toBeGreaterThan(0)
+
     await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
     await user.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(
-      within(quoteSection).getByText(
-        'The Grand Hall is not available on 2026-05-15. Quote request was not sent.',
-      ),
+      within(quoteSection).getByText('Please select a venue from the list before choosing a date.'),
     ).toBeInTheDocument()
   })
 
@@ -218,7 +256,9 @@ describe('VenuePage', () => {
         currencyCode: 'EUR',
         formattedPricePerDay: '€1,100',
         hasProjector: true,
-        availableDates: ['2026-07-03', '2026-07-10', '2026-07-24'],
+        availableDates: [],
+        blockedDates: [],
+        availabilityNote: 'All future dates are available unless already booked.',
       },
     })
   })
@@ -238,18 +278,52 @@ describe('VenuePage', () => {
           location: 'Jena',
           capacity: 150,
           formattedPricePerDay: '€1,200',
-          nextAvailableDate: '2026-06-15',
+          availabilityNote: 'All future dates are available unless already booked.',
         }),
       ]),
     )
 
     await expect(
-      callVenueTool('list_available_venues', { date: '2026-06-15' }),
+      callVenueTool('list_available_venues', { date: '2030-06-15' }),
     ).resolves.toMatchObject({
       success: true,
-      date: '2026-06-15',
-      venues: [{ name: 'The Grand Hall', nextAvailableDate: '2026-06-15' }],
+      date: '2030-06-15',
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'The Grand Hall' }),
+        expect.objectContaining({ name: 'Garden Pavilion' }),
+      ]),
     })
+  })
+
+  it('registers an event-type recommendation tool for the assistant', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    const weddingVenues = (await callVenueTool('recommend_venues_by_event_type', {
+      eventType: 'wedding',
+    })) as { venues: { name: string }[] }
+
+    expect(weddingVenues).toMatchObject({ success: true, matchedEventType: 'wedding' })
+    expect(weddingVenues.venues.map((venue) => venue.name).sort()).toEqual([
+      'Garden Pavilion',
+      'The Grand Hall',
+    ])
+
+    await expect(
+      callVenueTool('recommend_venues_by_event_type', { eventType: 'birthday' }),
+    ).resolves.toMatchObject({
+      success: true,
+      matchedEventType: 'celebration',
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'Atelier Courtyard' }),
+        expect.objectContaining({ name: 'Garden Pavilion' }),
+      ]),
+    })
+
+    await expect(
+      callVenueTool('recommend_venues_by_event_type', { eventType: 'underwater rave' }),
+    ).resolves.toMatchObject({ success: false, matchedEventType: '' })
   })
 
   it('registers a flexible venue search tool for capacity and event-fit prompts', async () => {
@@ -273,20 +347,49 @@ describe('VenuePage', () => {
 
     await expect(
       callVenueTool('search_venues', {
+        query: 'birthday party for 60 people',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      matchedEventType: 'celebration',
+      exactMatchCount: 2,
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'Atelier Courtyard' }),
+        expect.objectContaining({ name: 'Garden Pavilion' }),
+      ]),
+    })
+
+    await expect(
+      callVenueTool('search_venues', {
+        guestCount: 100,
+        requiredAmenities: ['projector'],
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      matchedEventType: '',
+      exactMatchCount: 2,
+      venues: expect.arrayContaining([
+        expect.objectContaining({ name: 'The Grand Hall', capacity: 150 }),
+        expect.objectContaining({ name: 'River Conference Suite', capacity: 120 }),
+      ]),
+    })
+
+    await expect(
+      callVenueTool('search_venues', {
         eventType: 'wedding',
         details: 'outdoor reception with catering and parking',
       }),
     ).resolves.toMatchObject({
       success: true,
-      exactMatchCount: 0,
-      suggestionCount: 3,
+      matchedEventType: 'wedding',
+      exactMatchCount: 1,
+      suggestionCount: 0,
       venues: [
         expect.objectContaining({
-          fit: 'suggestion',
+          fit: 'exact',
+          name: 'Garden Pavilion',
           matchedAmenities: expect.arrayContaining(['outdoor', 'catering', 'parking']),
         }),
-        expect.any(Object),
-        expect.any(Object),
       ],
     })
   })
@@ -317,6 +420,77 @@ describe('VenuePage', () => {
       date: '2026-06-15',
       available: true,
     })
+
+    await expect(
+      callVenueTool('check_availability', {
+        roomName: 'Garden Pavilion',
+        date: '2026-07-08',
+        eventType: 'birthday',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      roomName: 'Garden Pavilion',
+      date: '2026-07-08',
+      available: true,
+      matchedEventType: 'celebration',
+      eventTypeSuitable: true,
+    })
+
+    await expect(
+      callVenueTool('check_availability', {
+        roomName: 'Grand Hall',
+        date: '2026-06-15',
+        eventType: 'birthday',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      roomName: 'The Grand Hall',
+      date: '2026-06-15',
+      available: false,
+      matchedEventType: 'celebration',
+      eventTypeSuitable: false,
+    })
+  })
+
+  it('carries event type context into availability checks until a generic search clears it', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    await expect(
+      callVenueTool('recommend_venues_by_event_type', { eventType: 'birthday' }),
+    ).resolves.toMatchObject({ success: true, matchedEventType: 'celebration' })
+
+    await expect(
+      callVenueTool('check_availability', {
+        roomName: 'Garden Pavilion',
+        date: '2026-07-08',
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      available: true,
+      matchedEventType: 'celebration',
+      eventTypeSuitable: true,
+    })
+
+    await expect(
+      callVenueTool('search_venues', {
+        guestCount: 100,
+        requiredAmenities: ['projector'],
+      }),
+    ).resolves.toMatchObject({ success: true, matchedEventType: '' })
+
+    const unconstrainedAvailability = (await callVenueTool('check_availability', {
+      roomName: 'Grand Hall',
+      date: '2026-06-15',
+    })) as Record<string, unknown>
+
+    expect(unconstrainedAvailability).toMatchObject({
+      success: true,
+      available: true,
+    })
+    expect(unconstrainedAvailability).not.toHaveProperty('matchedEventType')
+    expect(unconstrainedAvailability).not.toHaveProperty('eventTypeSuitable')
   })
 
   it('registers a pricing tool with explicit euro formatting', async () => {
@@ -347,7 +521,7 @@ describe('VenuePage', () => {
       }),
     ).resolves.toMatchObject({ success: true, available: true })
 
-    expect(screen.getByLabelText('Room Name')).toHaveValue('The Grand Hall')
+    expect(screen.getByLabelText('Venue')).toHaveValue('The Grand Hall')
     expect(screen.getByLabelText('Date')).toHaveValue('2026-06-15')
     expect(screen.getByLabelText('Your Email')).toHaveValue('planner@example.com')
   })
@@ -387,7 +561,7 @@ describe('VenuePage', () => {
     const quoteSection = screen.getByRole('region', { name: 'Request a Quote' })
 
     await waitFor(() => {
-      expect(within(quoteSection).getByLabelText('Room Name')).toHaveValue('The Grand Hall')
+      expect(within(quoteSection).getByLabelText('Venue')).toHaveValue('The Grand Hall')
     })
     expect(within(quoteSection).getByLabelText('Date')).toHaveValue('2026-06-15')
     expect(within(quoteSection).getByLabelText('Your Email')).toHaveValue('planner@example.com')
@@ -413,14 +587,40 @@ describe('VenuePage', () => {
     ).resolves.toMatchObject({
       success: false,
       available: false,
-      message:
-        'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
+      message: 'Please choose today or a future date. Quote request form was not prepared.',
     })
 
-    expect(screen.getByLabelText('Room Name')).toHaveValue('')
+    expect(screen.getByLabelText('Venue')).toHaveValue('')
+    expect(
+      screen.getByText('Please choose today or a future date. Quote request form was not prepared.'),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the quote form untouched when the room does not suit the event type', async () => {
+    renderVenuePage()
+
+    await waitForVenueTools()
+
+    await expect(
+      callVenueTool('prepare_quote_request', {
+        roomName: 'Grand Hall',
+        date: '2026-06-15',
+        email: 'planner@example.com',
+        eventType: 'birthday',
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      available: false,
+      matchedEventType: 'celebration',
+      eventTypeSuitable: false,
+      message:
+        'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
+    })
+
+    expect(screen.getByLabelText('Venue')).toHaveValue('')
     expect(
       screen.getByText(
-        'The Grand Hall is not available on 2026-05-15. Quote request form was not prepared.',
+        'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
       ),
     ).toBeInTheDocument()
   })
