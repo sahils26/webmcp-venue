@@ -71,7 +71,8 @@ RULES:
 2. After receiving a tool result, immediately answer the user. Do NOT say "technical difficulties".
 3. The tool result is a JSON string. Read the "venues" array and list each venue's name, capacity, and price.
 4. If the JSON contains "success": true, the data is valid — present it directly.
-5. Never call more than 2 tools per user message."""
+5. Never call more than 2 tools per user message.
+6. ONLY use venue names that appear in the tool result JSON. Never invent or guess venue names."""
     
     agent = create_react_agent(llm, tools, prompt=system_prompt)
     return agent
