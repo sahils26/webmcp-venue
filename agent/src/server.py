@@ -133,6 +133,9 @@ async def chat(request: ChatRequest):
     except AgentConfigurationError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
+        error_str = str(error)
+        if "429" in error_str or "rate_limited" in error_str.lower() or "Rate limit" in error_str:
+            raise HTTPException(status_code=429, detail="Rate limit reached on the free Mistral tier. Please wait 30 seconds and try again.") from error
         logger.exception("Agent request failed")
         raise HTTPException(status_code=500, detail="Agent request failed.") from error
 
