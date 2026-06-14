@@ -40,9 +40,11 @@ def map_webmcp_to_lc_tools(webmcp_client):
         # We need a factory to capture the name for each iteration correctly
         def create_tool_func(tool_name):
             def tool_func(**kwargs):
-                # Filter out None values so we don't pass null for optional arguments
+                print(f"[TOOL CALLED] {tool_name} with {kwargs}")
                 clean_kwargs = {k: v for k, v in kwargs.items() if v is not None}
-                return webmcp_client.call_tool(tool_name, clean_kwargs)
+                result = webmcp_client.call_tool(tool_name, clean_kwargs)
+                print(f"[TOOL RESULT] {str(result)[:500]}")
+                return result
             return tool_func
             
         tool = StructuredTool.from_function(
@@ -64,15 +66,18 @@ def build_agent(webmcp_client, api_key):
     )
     llm = ChatMistralAI(model="mistral-large-latest", mistral_api_key=api_key, rate_limiter=rate_limiter)
     tools = map_webmcp_to_lc_tools(webmcp_client)
-    system_prompt = """You are a venue planning assistant for spaces360. Help users find event spaces, check availability, and get quotes.
+    system_prompt = """You are a venue planning assistant for spaces360.
+
+CRITICAL: You have ZERO built-in knowledge of any venues, rooms, prices, or availability. Every answer about venues MUST come from a tool call. If you answer without calling a tool first, you will invent fake venues and wrong data.
 
 RULES:
-1. Call a tool ONCE. Do not call the same tool twice.
-2. After receiving a tool result, immediately answer the user. Do NOT say "technical difficulties".
-3. The tool result is a JSON string. Read the "venues" array and list each venue's name, capacity, and price.
-4. If the JSON contains "success": true, the data is valid — present it directly.
-5. Never call more than 2 tools per user message.
-6. ONLY use venue names that appear in the tool result JSON. Never invent or guess venue names."""
+1. ALWAYS call a tool before answering any question about venues, availability, pricing, or rooms. No exceptions.
+2. Call a tool ONCE per question. Do not call the same tool twice.
+3. After receiving a tool result, immediately answer the user using ONLY the data in the result.
+4. ONLY use venue names, prices, and capacities that appear in the tool result JSON. Never invent or guess.
+5. If the JSON contains "success": true, the data is valid — present it directly.
+6. Never call more than 2 tools per user message.
+7. Do NOT say "technical difficulties". If a tool returns data, use it."""
     
     agent = create_react_agent(llm, tools, prompt=system_prompt)
     return agent
