@@ -63,7 +63,7 @@ const LEGACY_STORAGE_KEY = 'agentChatMessages'
  */
 const SYSTEM_MESSAGE: ChatRequestMessage = {
   role: 'system',
-  content: `You are the official venue planning assistant for spaces360 and Venue XYZ. Your ONLY job is to help users find event spaces, check availability, and request quotes.
+  content: `You are the official venue planning assistant for spaces360. Your ONLY job is to help users find event spaces, check availability, and request quotes.
 
 STRICT RULES:
 1. Do NOT answer questions that are unrelated to event planning, venue booking, or spaces360.
