@@ -91,6 +91,7 @@ export default function QuoteForm({
     isDateSelectionEnabled ? 'enabled' : 'disabled',
   ].join('-')
   const dateHintText = isDateSelectionEnabled ? dateHelpText : calendarDisabledMessage
+  const isSuccessStatus = quoteStatus?.startsWith('Quote requested for ') ?? false
 
   const handleCalendarDateSelect = (date: string) => {
     if (!isDateSelectionEnabled) {
@@ -245,7 +246,10 @@ export default function QuoteForm({
       </form>
 
       {quoteStatus && (
-        <div className="quote-status" role="status">
+        <div
+          className={`quote-status quote-status--${isSuccessStatus ? 'success' : 'error'}`}
+          role={isSuccessStatus ? 'status' : 'alert'}
+        >
           {quoteStatus}
         </div>
       )}

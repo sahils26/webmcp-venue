@@ -1,7 +1,8 @@
-import { screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QUOTE_SUCCESS_RESET_DELAY_MS } from '../../features/quote/quoteTiming'
 import { renderWithProviders } from '../../tests/renderWithProviders'
 import VenueDetailPage from '../VenueDetailPage'
 import VenuePage from '../VenuePage'
@@ -31,10 +32,11 @@ describe('VenueDetailPage', () => {
     expect(screen.getAllByText('Professional Projector & Screen').length).toBeGreaterThan(0)
 
     const quotePanel = screen.getByRole('complementary', { name: 'Quote request' })
-    expect(within(quotePanel).getByRole('heading', { name: 'Reserve This Venue' })).toBeInTheDocument()
+    expect(within(quotePanel).getByRole('heading', { name: 'Request a Quote' })).toBeInTheDocument()
     expect(within(quotePanel).getByLabelText('Venue')).toHaveValue('The Grand Hall')
     expect(within(quotePanel).getByLabelText('Venue')).toHaveAttribute('readonly')
     expect(within(quotePanel).getByLabelText('Date')).toHaveAttribute('readonly')
+    expect(within(quotePanel).queryByText(/payment/i)).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Plan With Clear Availability' })).toBeInTheDocument()
   })
 
@@ -44,12 +46,13 @@ describe('VenueDetailPage', () => {
 
     const quotePanel = screen.getByRole('complementary', { name: 'Quote request' })
     await user.type(within(quotePanel).getByLabelText('Your Email'), 'planner@example.com')
-    await user.click(within(quotePanel).getByRole('button', { name: 'Continue to Payment' }))
+    await user.click(within(quotePanel).getByRole('button', { name: 'Submit Quote Request' }))
 
     expect(within(quotePanel).getByText('Please choose a valid event date.')).toBeInTheDocument()
+    expect(within(quotePanel).getByRole('alert')).toHaveClass('quote-status--error')
   })
 
-  it('continues to payment for the locked detail-page venue', async () => {
+  it('shows success, clears the detail quote form, and keeps the selected date blocked', async () => {
     const user = userEvent.setup()
     renderVenueDetailPage()
 
@@ -58,13 +61,38 @@ describe('VenueDetailPage', () => {
       within(quotePanel).getByRole('button', { name: /June 15, 2026, available/ }),
     )
     await user.type(within(quotePanel).getByLabelText('Your Email'), 'planner@example.com')
-    await user.click(within(quotePanel).getByRole('button', { name: 'Continue to Payment' }))
+    vi.useFakeTimers()
+    fireEvent.click(within(quotePanel).getByRole('button', { name: 'Submit Quote Request' }))
 
-    expect(within(quotePanel).getByRole('heading', { name: 'Complete Booking' })).toBeInTheDocument()
-    expect(within(quotePanel).getByText('€1,200')).toBeInTheDocument()
+    expect(
+      within(quotePanel).getByText(
+        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com. The date is now held.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(quotePanel).getByRole('status')).toHaveClass('quote-status--success')
+    expect(
+      within(quotePanel).getByRole('button', { name: /June 15, 2026, booked/ }),
+    ).toBeDisabled()
+
+    act(() => {
+      vi.advanceTimersByTime(QUOTE_SUCCESS_RESET_DELAY_MS)
+    })
+    vi.useRealTimers()
+
+    expect(within(quotePanel).getByLabelText('Venue')).toHaveValue('The Grand Hall')
+    expect(within(quotePanel).getByLabelText('Date')).toHaveValue('')
+    expect(within(quotePanel).getByLabelText('Your Email')).toHaveValue('')
+    expect(
+      within(quotePanel).queryByText(
+        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com. The date is now held.',
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      within(quotePanel).getByRole('button', { name: /June 15, 2026, booked/ }),
+    ).toBeDisabled()
   })
 
-  it('shows a success notification after confirming payment', async () => {
+  it('shows a detail-page quote hold as blocked on the homepage', async () => {
     const user = userEvent.setup()
     renderVenueDetailPage()
 
@@ -73,14 +101,21 @@ describe('VenueDetailPage', () => {
       within(quotePanel).getByRole('button', { name: /June 15, 2026, available/ }),
     )
     await user.type(within(quotePanel).getByLabelText('Your Email'), 'planner@example.com')
-    await user.click(within(quotePanel).getByRole('button', { name: 'Continue to Payment' }))
-    await user.click(within(quotePanel).getByRole('button', { name: 'Confirm Payment' }))
+    await user.click(within(quotePanel).getByRole('button', { name: 'Submit Quote Request' }))
+    await user.click(screen.getByRole('link', { name: 'Browse all spaces' }))
 
-    const toast = screen.getByRole('status')
-    expect(toast).toHaveTextContent('Your payment is successful.')
-    expect(toast).toHaveTextContent(
-      'We will shortly send the confirmation document to planner@example.com.',
+    const homepageQuoteSection = screen.getByRole('region', { name: 'Request a Quote' })
+    await user.click(within(homepageQuoteSection).getByLabelText('Venue'))
+    await user.click(
+      within(homepageQuoteSection).getByRole('option', { name: /The Grand Hall/ }),
     )
+
+    expect(
+      within(homepageQuoteSection).getByRole('button', { name: /June 15, 2026, booked/ }),
+    ).toBeDisabled()
+    expect(
+      within(homepageQuoteSection).queryByRole('button', { name: /June 15, 2026, available/ }),
+    ).not.toBeInTheDocument()
   })
 
   it('renders a helpful fallback for unknown venue routes', () => {

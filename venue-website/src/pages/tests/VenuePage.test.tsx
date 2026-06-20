@@ -1,7 +1,8 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { callAgentTool, listAgentTools } from '../../lib/toolRegistry'
+import { QUOTE_SUCCESS_RESET_DELAY_MS } from '../../features/quote/quoteTiming'
 import { renderWithProviders } from '../../tests/renderWithProviders'
 import type { AgentToolParams } from '../../types/agentTool'
 import App from '../../App'
@@ -204,7 +205,63 @@ describe('VenuePage', () => {
     expect(screen.getByRole('heading', { name: 'The Grand Hall', level: 1 })).toBeInTheDocument()
   })
 
-  it('submits a quote request for an available room and date', async () => {
+  it('requires an email before continuing a homepage quote request', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
+
+    const quoteSection = await selectHomepageVenueAndDate(user)
+    await user.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
+
+    expect(
+      within(quoteSection).getByText('Please enter a valid email address for the quote request.'),
+    ).toBeInTheDocument()
+    expect(within(quoteSection).getByRole('alert')).toHaveClass('quote-status--error')
+    expect(window.location.pathname).toBe('/')
+  })
+
+  it('shows success, clears a valid homepage quote form, and keeps the date blocked', async () => {
+    const user = userEvent.setup()
+    renderVenuePage()
+
+    const quoteSection = await selectHomepageVenueAndDate(user)
+    await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
+    vi.useFakeTimers()
+    fireEvent.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
+
+    expect(window.location.pathname).toBe('/')
+    expect(
+      within(quoteSection).getByText(
+        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com. The date is now held.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(quoteSection).getByRole('status')).toHaveClass('quote-status--success')
+    expect(
+      within(quoteSection).getByRole('button', { name: /June 15, 2026, booked/ }),
+    ).toBeDisabled()
+
+    act(() => {
+      vi.advanceTimersByTime(QUOTE_SUCCESS_RESET_DELAY_MS)
+    })
+    vi.useRealTimers()
+
+    expect(within(quoteSection).getByLabelText('Venue')).toHaveValue('')
+    expect(within(quoteSection).getByLabelText('Date')).toHaveValue('')
+    expect(within(quoteSection).getByLabelText('Your Email')).toHaveValue('')
+    expect(
+      within(quoteSection).queryByText(
+        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com. The date is now held.',
+      ),
+    ).not.toBeInTheDocument()
+
+    await user.click(within(quoteSection).getByLabelText('Venue'))
+    await user.click(within(quoteSection).getByRole('option', { name: /The Grand Hall/ }))
+
+    expect(
+      within(quoteSection).getByRole('button', { name: /June 15, 2026, booked/ }),
+    ).toBeDisabled()
+  })
+
+  it('shows a homepage quote hold as blocked when the user later visits the detail page', async () => {
     const user = userEvent.setup()
     renderVenuePage()
 
@@ -212,11 +269,17 @@ describe('VenuePage', () => {
     await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
     await user.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
 
+    expect(window.location.pathname).toBe('/')
+
+    const venueGrid = screen.getByRole('list', { name: 'All venues' })
+    await user.click(
+      within(venueGrid).getByRole('article', { name: 'The Grand Hall venue card' }),
+    )
+
+    const quotePanel = screen.getByRole('complementary', { name: 'Quote request' })
     expect(
-      within(quoteSection).getByText(
-        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com.',
-      ),
-    ).toBeInTheDocument()
+      within(quotePanel).getByRole('button', { name: /June 15, 2026, booked/ }),
+    ).toBeDisabled()
   })
 
   it('keeps date selection locked until a venue is selected', async () => {

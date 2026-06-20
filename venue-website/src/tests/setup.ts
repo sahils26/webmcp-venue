@@ -20,6 +20,7 @@ Object.defineProperty(window, 'scrollTo', {
  */
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()

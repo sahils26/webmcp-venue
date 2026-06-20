@@ -155,7 +155,7 @@ export default function VenueDetailsModal({
               </div>
               <div>
                 <dt>Confirmation</dt>
-                <dd>Payment locks the date and sends the confirmation document by email.</dd>
+                <dd>Submitting a quote request holds the date for team follow-up.</dd>
               </div>
             </dl>
           </section>

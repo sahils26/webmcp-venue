@@ -1,0 +1,25 @@
+# Render blueprint for the venue backend (Phase 0 deploy target).
+# Connect this repo as a Blueprint in Render; it builds from backend/ and
+# auto-runs migrations on each deploy. Set DATABASE_URL to the Neon connection
+# string and CORS_ORIGINS to the deployed venue-website origin in the dashboard.
+services:
+  - type: web
+    name: venue-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: ENVIRONMENT
+        value: production
+      # Neon Postgres connection string, e.g.
+      # postgresql+psycopg2://user:pass@ep-xxx.aws.neon.tech/venuedb?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      # Comma-separated allowed CORS origins (the deployed venue-website URL).
+      - key: CORS_ORIGINS
+        sync: false

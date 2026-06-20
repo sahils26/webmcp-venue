@@ -4,8 +4,6 @@ export interface VenueBooking {
   venueName: string
   date: string
   email: string
-  amount: number
-  currencyCode: 'EUR'
   createdAt: string
 }
 
@@ -28,8 +26,6 @@ function isVenueBooking(value: unknown): value is VenueBooking {
     typeof booking.venueName === 'string' &&
     typeof booking.date === 'string' &&
     typeof booking.email === 'string' &&
-    typeof booking.amount === 'number' &&
-    booking.currencyCode === 'EUR' &&
     typeof booking.createdAt === 'string'
   )
 }

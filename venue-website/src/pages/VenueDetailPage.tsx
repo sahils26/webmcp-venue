@@ -1,5 +1,5 @@
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import QuoteForm from '../components/landing/QuoteForm'
 import SiteFooter from '../components/landing/SiteFooter'
@@ -9,22 +9,20 @@ import { venueSearchResults } from '../data/venueSearchResults'
 import {
   getBookedDateKeysForVenue,
   selectVenueBookings,
-  venueBookingCompleted,
+  venueQuoteRequested,
 } from '../features/bookings/bookingSlice'
 import { appendStoredVenueBooking } from '../features/bookings/bookingStorage'
 import {
   selectQuoteDraft,
   selectQuoteHandoffRequestKey,
 } from '../features/quote/quoteSlice'
+import { QUOTE_SUCCESS_RESET_DELAY_MS } from '../features/quote/quoteTiming'
 import { getRoomAvailability, resolveRoomName } from '../services/venueAvailability'
 import type { QuoteDraft, VenueSearchResult } from '../types/venue'
 import { formatVenueCurrency } from '../utils/currency'
 import { getNextOpenDateKey, getTodayDateKey, normalizeDateKey } from '../utils/dateKeys'
+import { isValidEmailAddress } from '../utils/email'
 import './style/VenueDetailPage.scss'
-
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
 
 const fullDateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
@@ -36,22 +34,6 @@ const fullDateFormatter = new Intl.DateTimeFormat('en-US', {
 
 function formatDate(date: string): string {
   return fullDateFormatter.format(new Date(`${date}T00:00:00Z`))
-}
-
-interface PaymentDraft {
-  cardholderName: string
-  cardNumber: string
-  expiryDate: string
-  securityCode: string
-  billingAddress: string
-}
-
-const emptyPaymentDraft: PaymentDraft = {
-  cardholderName: '',
-  cardNumber: '',
-  expiryDate: '',
-  securityCode: '',
-  billingAddress: '',
 }
 
 interface VenueBookingHighlightsProps {
@@ -90,7 +72,7 @@ function VenueBookingHighlights({ venue }: VenueBookingHighlightsProps) {
         </div>
         <div>
           <dt>Confirmation</dt>
-          <dd>Payment locks the date and triggers the email document.</dd>
+          <dd>Submitting a quote request holds the date for team follow-up.</dd>
         </div>
       </dl>
 
@@ -128,7 +110,6 @@ interface VenueQuotePanelProps {
 
 function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
   const dispatch = useAppDispatch()
-  const navigate = useNavigate()
   const todayDateKey = useMemo(() => getTodayDateKey(), [])
   const preparedQuoteDraft = useAppSelector(selectQuoteDraft)
   const quoteHandoffRequestKey = useAppSelector(selectQuoteHandoffRequestKey)
@@ -138,15 +119,23 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
     [bookings, venue.id],
   )
   const handledHandoffRequestKeyRef = useRef(0)
+  const quoteResetTimerRef = useRef<number | null>(null)
   const [quoteDraft, setQuoteDraft] = useState<QuoteDraft>({
     roomName: venue.name,
     date: '',
     email: '',
   })
   const [quoteStatus, setQuoteStatus] = useState<string | null>(null)
-  const [bookingStep, setBookingStep] = useState<'details' | 'payment'>('details')
-  const [paymentDraft, setPaymentDraft] = useState<PaymentDraft>(emptyPaymentDraft)
   const nextBookableDate = getNextOpenDateKey(bookedDates, todayDateKey)
+
+  useEffect(
+    () => () => {
+      if (quoteResetTimerRef.current !== null) {
+        window.clearTimeout(quoteResetTimerRef.current)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     if (
@@ -158,12 +147,15 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
     }
 
     handledHandoffRequestKeyRef.current = quoteHandoffRequestKey
+    if (quoteResetTimerRef.current !== null) {
+      window.clearTimeout(quoteResetTimerRef.current)
+      quoteResetTimerRef.current = null
+    }
     setQuoteDraft({
       roomName: venue.name,
       date: preparedQuoteDraft.date,
       email: preparedQuoteDraft.email,
     })
-    setBookingStep('details')
     setQuoteStatus(null)
     document
       .getElementById('venue-detail-quote')
@@ -171,7 +163,15 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
     document.getElementById('detail-quote-submit')?.focus({ preventScroll: true })
   }, [preparedQuoteDraft, quoteHandoffRequestKey, venue.name])
 
+  const cancelScheduledQuoteReset = () => {
+    if (quoteResetTimerRef.current !== null) {
+      window.clearTimeout(quoteResetTimerRef.current)
+      quoteResetTimerRef.current = null
+    }
+  }
+
   const handleQuoteFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
+    cancelScheduledQuoteReset()
     const { name, value } = event.target
 
     if (name === 'roomName') {
@@ -185,6 +185,7 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
   }
 
   const handleQuoteDateSelect = (date: string) => {
+    cancelScheduledQuoteReset()
     setQuoteDraft((currentDraft) => ({ ...currentDraft, date }))
     setQuoteStatus(null)
   }
@@ -205,7 +206,7 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
       return
     }
 
-    if (!isValidEmail(email)) {
+    if (!isValidEmailAddress(email)) {
       setQuoteStatus('Please enter a valid email address for the quote request.')
       return
     }
@@ -221,196 +222,59 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
       return
     }
 
-    setPaymentDraft(emptyPaymentDraft)
-    setBookingStep('payment')
-    setQuoteStatus(null)
-  }
-
-  const handlePaymentFieldChange = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = event.target
-
-    if (name in emptyPaymentDraft) {
-      setPaymentDraft((currentDraft) => ({
-        ...currentDraft,
-        [name as keyof PaymentDraft]: value,
-      }))
-    }
-  }
-
-  const handlePaymentBack = () => {
-    setBookingStep('details')
-    setQuoteStatus(null)
-  }
-
-  const handlePaymentSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
-    const date = normalizeDateKey(quoteDraft.date)
-    if (!date) {
-      setBookingStep('details')
-      setQuoteStatus('Please choose a valid event date before payment.')
-      return
-    }
-
-    if (bookedDates.includes(date)) {
-      setBookingStep('details')
-      setQuoteStatus(`${venue.name} is already booked on ${date}. Please choose another date.`)
-      return
-    }
-
-    const booking = {
+    const quoteRequest = {
       id: `${venue.id}-${date}-${Date.now()}`,
       venueId: venue.id,
       venueName: venue.name,
       date,
-      email: quoteDraft.email.trim(),
-      amount: venue.price_per_day,
-      currencyCode: 'EUR' as const,
+      email,
       createdAt: new Date().toISOString(),
     }
 
-    appendStoredVenueBooking(booking)
-    dispatch(venueBookingCompleted(booking))
-    navigate('/', {
-      state: {
-        paymentSuccess: {
-          venueName: venue.name,
-          date,
-          email: booking.email,
-        },
-      },
-    })
+    appendStoredVenueBooking(quoteRequest)
+    dispatch(venueQuoteRequested(quoteRequest))
+    setQuoteDraft((currentDraft) => ({ ...currentDraft, email }))
+    setQuoteStatus(`Quote requested for ${venue.name} on ${date} by ${email}. The date is now held.`)
+    cancelScheduledQuoteReset()
+    quoteResetTimerRef.current = window.setTimeout(() => {
+      setQuoteDraft({
+        roomName: venue.name,
+        date: '',
+        email: '',
+      })
+      setQuoteStatus(null)
+      quoteResetTimerRef.current = null
+    }, QUOTE_SUCCESS_RESET_DELAY_MS)
   }
 
   return (
     <aside className="venue-detail__booking-panel" aria-label="Quote request">
-      <p className="venue-detail__panel-label">
-        {bookingStep === 'payment' ? 'Dummy payment' : 'Next available'}
-      </p>
+      <p className="venue-detail__panel-label">Next available</p>
       <p className="venue-detail__panel-date">
         {nextBookableDate ? formatDate(nextBookableDate) : 'No open dates'}
       </p>
       <p className="venue-detail__policy">{venue.cancellation_policy}</p>
 
       <div className="venue-detail__quote-form" id="venue-detail-quote">
-        <h2 className="venue-detail__quote-title">
-          {bookingStep === 'payment' ? 'Complete Booking' : 'Reserve This Venue'}
-        </h2>
-
-        {bookingStep === 'details' ? (
-          <QuoteForm
-            idPrefix="detail-quote"
-            quoteDraft={quoteDraft}
-            quoteStatus={quoteStatus}
-            onQuoteFieldChange={handleQuoteFieldChange}
-            onQuoteSubmit={handleQuoteSubmit}
-            bookedDates={bookedDates}
-            calendarEmptyMessage="No future dates are open for this venue."
-            onQuoteDateSelect={handleQuoteDateSelect}
-            roomLabel="Venue"
-            roomReadOnly
-            dateMin={todayDateKey}
-            dateHelpText="All future dates are open unless already booked."
-            showCalendar
-            submitButtonId="detail-quote-submit"
-            submitButtonLabel="Continue to Payment"
-            noValidate
-          />
-        ) : (
-          <>
-            <dl className="venue-detail__payment-summary" aria-label="Booking summary">
-              <div>
-                <dt>Venue</dt>
-                <dd>{venue.name}</dd>
-              </div>
-              <div>
-                <dt>Date</dt>
-                <dd>{formatDate(quoteDraft.date)}</dd>
-              </div>
-              <div>
-                <dt>Total</dt>
-                <dd>{formatVenueCurrency(venue.price_per_day)}</dd>
-              </div>
-            </dl>
-
-            <form
-              className="venue-detail__payment-form"
-              noValidate
-              onSubmit={handlePaymentSubmit}
-            >
-              <label className="venue-detail__payment-field">
-                <span>Name on Card</span>
-                <input
-                  type="text"
-                  name="cardholderName"
-                  value={paymentDraft.cardholderName}
-                  onChange={handlePaymentFieldChange}
-                />
-              </label>
-              <label className="venue-detail__payment-field">
-                <span>Card Number</span>
-                <input
-                  type="text"
-                  name="cardNumber"
-                  inputMode="numeric"
-                  value={paymentDraft.cardNumber}
-                  onChange={handlePaymentFieldChange}
-                />
-              </label>
-              <div className="venue-detail__payment-row">
-                <label className="venue-detail__payment-field">
-                  <span>Expiry</span>
-                  <input
-                    type="text"
-                    name="expiryDate"
-                    value={paymentDraft.expiryDate}
-                    onChange={handlePaymentFieldChange}
-                  />
-                </label>
-                <label className="venue-detail__payment-field">
-                  <span>CVC</span>
-                  <input
-                    type="text"
-                    name="securityCode"
-                    inputMode="numeric"
-                    value={paymentDraft.securityCode}
-                    onChange={handlePaymentFieldChange}
-                  />
-                </label>
-              </div>
-              <label className="venue-detail__payment-field">
-                <span>Billing Address</span>
-                <textarea
-                  name="billingAddress"
-                  rows={3}
-                  value={paymentDraft.billingAddress}
-                  onChange={handlePaymentFieldChange}
-                />
-              </label>
-
-              <div className="venue-detail__payment-actions">
-                <button
-                  className="venue-detail__secondary-action"
-                  type="button"
-                  onClick={handlePaymentBack}
-                >
-                  Back
-                </button>
-                <button className="venue-detail__payment-submit" type="submit">
-                  Confirm Payment
-                </button>
-              </div>
-            </form>
-
-            {quoteStatus && (
-              <div className="quote-status" role="status">
-                {quoteStatus}
-              </div>
-            )}
-          </>
-        )}
+        <h2 className="venue-detail__quote-title">Request a Quote</h2>
+        <QuoteForm
+          idPrefix="detail-quote"
+          quoteDraft={quoteDraft}
+          quoteStatus={quoteStatus}
+          onQuoteFieldChange={handleQuoteFieldChange}
+          onQuoteSubmit={handleQuoteSubmit}
+          bookedDates={bookedDates}
+          calendarEmptyMessage="No future dates are open for this venue."
+          onQuoteDateSelect={handleQuoteDateSelect}
+          roomLabel="Venue"
+          roomReadOnly
+          dateMin={todayDateKey}
+          dateHelpText="All future dates are open unless already booked."
+          showCalendar
+          submitButtonId="detail-quote-submit"
+          submitButtonLabel="Submit Quote Request"
+          noValidate
+        />
       </div>
     </aside>
   )
