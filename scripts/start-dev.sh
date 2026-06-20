@@ -3,11 +3,18 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AGENT_PYTHON="$ROOT_DIR/agent/.venv/bin/python"
+BACKEND_PYTHON="$ROOT_DIR/backend/.venv/bin/python"
 frontend_pid=""
 agent_pid=""
+backend_pid=""
 
 if [[ ! -x "$AGENT_PYTHON" ]]; then
   echo "Agent environment is missing. Run ./scripts/setup-agent.sh first."
+  exit 1
+fi
+
+if [[ ! -x "$BACKEND_PYTHON" ]]; then
+  echo "Backend environment is missing. Run ./scripts/setup-backend.sh first."
   exit 1
 fi
 
@@ -19,9 +26,16 @@ fi
 cleanup() {
   [[ -n "$frontend_pid" ]] && kill "$frontend_pid" 2>/dev/null || true
   [[ -n "$agent_pid" ]] && kill "$agent_pid" 2>/dev/null || true
+  [[ -n "$backend_pid" ]] && kill "$backend_pid" 2>/dev/null || true
 }
 
 trap cleanup EXIT INT TERM
+
+(
+  cd "$ROOT_DIR/backend"
+  "$BACKEND_PYTHON" -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+) &
+backend_pid=$!
 
 (
   cd "$ROOT_DIR/venue-website"
@@ -36,7 +50,8 @@ frontend_pid=$!
 agent_pid=$!
 
 echo "Frontend: https://127.0.0.1:5173"
+echo "Venue API: http://127.0.0.1:8000/docs"
 echo "Agent health: http://127.0.0.1:8001/health"
-echo "Press Ctrl+C to stop both services."
+echo "Press Ctrl+C to stop all services."
 
 wait

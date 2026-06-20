@@ -49,6 +49,9 @@ cd venue-website && npm install && cd ..
 
 # Create agent/.venv, install Python dependencies and Playwright Chromium
 ./scripts/setup-agent.sh
+
+# Create backend/.venv, migrate and seed the local SQLite database
+./scripts/setup-backend.sh
 ```
 
 ### 2. Configure
@@ -63,6 +66,7 @@ VENUE_WEBSITE_URL=https://127.0.0.1:5173
 ./scripts/start-dev.sh
 
 # Frontend: https://127.0.0.1:5173
+# Venue API docs: http://127.0.0.1:8000/docs
 # Agent health: http://127.0.0.1:8001/health
 ```
 
@@ -139,4 +143,3 @@ This is a research prototype. Issues and PRs welcome for:
 - [Chrome Setup Guide](docs/setup-guide.md)
 
 ---
-

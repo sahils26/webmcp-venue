@@ -4,6 +4,7 @@ A confirmed booking removes that date from a venue's advertised availability so
 the catalog reflects real bookings, not just the static open dates.
 """
 from collections import defaultdict
+from datetime import date
 
 from sqlmodel import Session, select
 
@@ -71,8 +72,11 @@ def build_catalog(session: Session) -> VenueCatalogOut:
         amenity_ids = [link.amenity_id for link in links]
         top_amenities = [link.amenity_id for link in links if link.is_top]
 
+        today = date.today().isoformat()
         available_dates = [
-            d for d in open_dates[venue.id] if d not in booked[venue.id]
+            d
+            for d in open_dates[venue.id]
+            if d >= today and d not in booked[venue.id]
         ]
         next_available = (
             venue.next_available_date.isoformat()

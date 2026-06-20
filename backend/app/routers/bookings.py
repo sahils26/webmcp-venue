@@ -3,36 +3,15 @@ from datetime import date as date_type
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from ..database import get_session
 from ..models.booking import Booking, BookingStatus
-from ..models.venue import Venue, VenueAvailableDate
+from ..models.venue import Venue
 from ..schemas.booking import AvailabilityOut, BookingCreate, BookingOut
+from ..services.availability import get_availability
 
 router = APIRouter(prefix="/api", tags=["bookings"])
-
-
-def _is_open_date(session: Session, venue_id: str, day: date_type) -> bool:
-    return (
-        session.exec(
-            select(VenueAvailableDate).where(
-                VenueAvailableDate.venue_id == venue_id,
-                VenueAvailableDate.date == day,
-            )
-        ).first()
-        is not None
-    )
-
-
-def _confirmed_booking(session: Session, venue_id: str, day: date_type) -> Booking | None:
-    return session.exec(
-        select(Booking).where(
-            Booking.venue_id == venue_id,
-            Booking.date == day,
-            Booking.status == BookingStatus.confirmed,
-        )
-    ).first()
 
 
 @router.get("/venues/{venue_id}/availability", response_model=AvailabilityOut)
@@ -41,24 +20,16 @@ def check_availability(
     date: date_type,
     session: Session = Depends(get_session),
 ) -> AvailabilityOut:
-    if session.get(Venue, venue_id) is None:
+    venue = session.get(Venue, venue_id)
+    if venue is None:
         raise HTTPException(status_code=404, detail=f"Venue '{venue_id}' not found")
 
-    if not _is_open_date(session, venue_id, date):
-        return AvailabilityOut(
-            venue_id=venue_id, date=date, available=False,
-            message=f"{venue_id} is not offered on {date.isoformat()}.",
-        )
-
-    if _confirmed_booking(session, venue_id, date) is not None:
-        return AvailabilityOut(
-            venue_id=venue_id, date=date, available=False,
-            message=f"{venue_id} is already booked on {date.isoformat()}.",
-        )
-
+    availability = get_availability(session, venue, date)
     return AvailabilityOut(
-        venue_id=venue_id, date=date, available=True,
-        message=f"{venue_id} is available on {date.isoformat()}.",
+        venue_id=venue_id,
+        date=date,
+        available=availability.available,
+        message=availability.reason,
     )
 
 
@@ -67,20 +38,19 @@ def create_booking(
     payload: BookingCreate,
     session: Session = Depends(get_session),
 ) -> Booking:
-    if session.get(Venue, payload.venue_id) is None:
+    venue = session.get(Venue, payload.venue_id)
+    if venue is None:
         raise HTTPException(status_code=404, detail=f"Venue '{payload.venue_id}' not found")
 
-    if not _is_open_date(session, payload.venue_id, payload.date):
+    if payload.guest_count is not None and payload.guest_count > venue.capacity:
         raise HTTPException(
-            status_code=409,
-            detail=f"{payload.venue_id} is not offered on {payload.date.isoformat()}.",
+            status_code=422,
+            detail=f"Guest count exceeds {payload.venue_id}'s capacity of {venue.capacity}.",
         )
 
-    if _confirmed_booking(session, payload.venue_id, payload.date) is not None:
-        raise HTTPException(
-            status_code=409,
-            detail=f"{payload.venue_id} is already booked on {payload.date.isoformat()}.",
-        )
+    availability = get_availability(session, venue, payload.date)
+    if not availability.available:
+        raise HTTPException(status_code=409, detail=availability.reason)
 
     booking = Booking(
         venue_id=payload.venue_id,

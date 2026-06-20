@@ -1,6 +1,7 @@
 """Database engine and session management."""
 from collections.abc import Generator
 
+from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
 from .config import get_settings
@@ -20,6 +21,15 @@ engine = create_engine(
     connect_args=_connect_args,
     pool_pre_ping=True,
 )
+
+
+if settings.resolved_database_url.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+        """Match Postgres foreign-key behavior during local development."""
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 def create_db_and_tables() -> None:

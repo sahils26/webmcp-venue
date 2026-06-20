@@ -1,31 +1,25 @@
 """Quote request persistence (replaces the browser-only quote slice)."""
-from fastapi import APIRouter, Depends
+from secrets import compare_digest
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlmodel import Session, select
 
+from ..config import Settings, get_settings
 from ..database import get_session
 from ..models.quote import QuoteRequest
-from ..models.venue import Venue, VenueTranslation
 from ..schemas.quote import QuoteCreate, QuoteOut
+from ..services.availability import get_availability, resolve_venue
 
 router = APIRouter(prefix="/api/quotes", tags=["quotes"])
 
 
-def _resolve_venue_id(session: Session, room_name: str) -> str | None:
-    """Best-effort match of a typed room name to a catalog venue id."""
-    key = room_name.strip().lower()
-    if not key:
-        return None
-
-    # Direct id match (slug typed in).
-    slug = key.replace(" ", "-")
-    if session.get(Venue, slug) is not None:
-        return slug
-
-    # Match against any localized venue name (case-insensitive).
-    for tr in session.exec(select(VenueTranslation)).all():
-        if tr.name.strip().lower() == key:
-            return tr.venue_id
-    return None
+def require_admin_key(
+    x_admin_api_key: str | None = Header(default=None),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    """Protect endpoints that expose customer contact details."""
+    if not x_admin_api_key or not compare_digest(x_admin_api_key, settings.admin_api_key):
+        raise HTTPException(status_code=401, detail="A valid admin API key is required.")
 
 
 @router.post("", response_model=QuoteOut, status_code=201)
@@ -33,9 +27,23 @@ def create_quote(
     payload: QuoteCreate,
     session: Session = Depends(get_session),
 ) -> QuoteRequest:
+    venue = resolve_venue(session, payload.room_name)
+    if venue is None:
+        raise HTTPException(status_code=404, detail=f"Venue '{payload.room_name}' not found")
+
+    if payload.guest_count is not None and payload.guest_count > venue.capacity:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Guest count exceeds {venue.id}'s capacity of {venue.capacity}.",
+        )
+
+    availability = get_availability(session, venue, payload.date)
+    if not availability.available:
+        raise HTTPException(status_code=409, detail=availability.reason)
+
     quote = QuoteRequest(
         room_name=payload.room_name,
-        venue_id=_resolve_venue_id(session, payload.room_name),
+        venue_id=venue.id,
         date=payload.date,
         email=payload.email,
         event_type=payload.event_type,
@@ -48,6 +56,6 @@ def create_quote(
     return quote
 
 
-@router.get("", response_model=list[QuoteOut])
+@router.get("", response_model=list[QuoteOut], dependencies=[Depends(require_admin_key)])
 def list_quotes(session: Session = Depends(get_session)) -> list[QuoteRequest]:
     return session.exec(select(QuoteRequest).order_by(QuoteRequest.created_at.desc())).all()

@@ -23,8 +23,12 @@ class Settings(BaseSettings):
     )
 
     database_url: str = ""
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "https://localhost:5173,https://127.0.0.1:5173"
+    )
     environment: str = "development"
+    admin_api_key: str = "local-demo-admin"
 
     @property
     def resolved_database_url(self) -> str:
