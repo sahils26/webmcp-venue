@@ -35,7 +35,7 @@ const bookingSlice = createSlice({
   name: 'bookings',
   initialState,
   reducers: {
-    venueBookingCompleted(state, action: PayloadAction<VenueBooking>) {
+    venueQuoteRequested(state, action: PayloadAction<VenueBooking>) {
       const bookingExists = isVenueDateBooked(
         state.bookings,
         action.payload.venueId,
@@ -49,7 +49,7 @@ const bookingSlice = createSlice({
   },
 })
 
-export const { venueBookingCompleted } = bookingSlice.actions
+export const { venueQuoteRequested } = bookingSlice.actions
 
 export const bookingReducer = bookingSlice.reducer
 

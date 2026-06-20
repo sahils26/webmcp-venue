@@ -1,5 +1,4 @@
-import { type ChangeEvent, type FormEvent, useEffect, useMemo } from 'react'
-import { useLocation } from 'react-router-dom'
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import ContactSection from '../components/landing/ContactSection'
 import GallerySection from '../components/landing/GallerySection'
@@ -10,41 +9,35 @@ import SiteHeader from '../components/landing/SiteHeader'
 import { venueSearchResults } from '../data/venueSearchResults'
 import {
   isQuoteDraftField,
+  quoteDraftCleared,
   quoteDraftFieldChanged,
   selectQuoteHandoffRequestKey,
   quoteStatusSet,
   selectQuoteDraft,
   selectQuoteStatus,
 } from '../features/quote/quoteSlice'
+import { QUOTE_SUCCESS_RESET_DELAY_MS } from '../features/quote/quoteTiming'
 import {
   getBookedDateKeysForVenue,
   selectVenueBookings,
+  venueQuoteRequested,
 } from '../features/bookings/bookingSlice'
+import { appendStoredVenueBooking } from '../features/bookings/bookingStorage'
 import { getRoomAvailability, getRoomByName } from '../services/venueAvailability'
 import { formatVenueCurrency } from '../utils/currency'
 import { getTodayDateKey, normalizeDateKey } from '../utils/dateKeys'
+import { isValidEmailAddress } from '../utils/email'
 import './style/VenuePage.scss'
-
-interface PaymentSuccessToast {
-  venueName: string
-  date: string
-  email: string
-}
-
-interface VenuePageLocationState {
-  paymentSuccess?: PaymentSuccessToast
-}
 
 export default function VenuePage() {
   const dispatch = useAppDispatch()
-  const location = useLocation()
+  const quoteResetTimerRef = useRef<number | null>(null)
   const quoteDraft = useAppSelector(selectQuoteDraft)
   const quoteFormHandoffKey = useAppSelector(selectQuoteHandoffRequestKey)
   const quoteStatus = useAppSelector(selectQuoteStatus)
   const selectedRoom = useMemo(() => getRoomByName(quoteDraft.roomName), [quoteDraft.roomName])
   const todayDateKey = useMemo(() => getTodayDateKey(), [])
   const bookings = useAppSelector(selectVenueBookings)
-  const paymentToast = (location.state as VenuePageLocationState | null)?.paymentSuccess ?? null
   const bookedDates = useMemo(
     () => (selectedRoom ? getBookedDateKeysForVenue(bookings, selectedRoom.id) : []),
     [bookings, selectedRoom],
@@ -66,13 +59,35 @@ export default function VenuePage() {
       return
     }
 
+    if (quoteResetTimerRef.current !== null) {
+      window.clearTimeout(quoteResetTimerRef.current)
+      quoteResetTimerRef.current = null
+    }
+
     document
       .getElementById('quote-request-section')
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     document.getElementById('homepage-quote-submit')?.focus({ preventScroll: true })
   }, [quoteFormHandoffKey])
 
+  useEffect(
+    () => () => {
+      if (quoteResetTimerRef.current !== null) {
+        window.clearTimeout(quoteResetTimerRef.current)
+      }
+    },
+    [],
+  )
+
+  const cancelScheduledQuoteReset = () => {
+    if (quoteResetTimerRef.current !== null) {
+      window.clearTimeout(quoteResetTimerRef.current)
+      quoteResetTimerRef.current = null
+    }
+  }
+
   const handleQuoteFieldChange = (event: ChangeEvent<HTMLInputElement>) => {
+    cancelScheduledQuoteReset()
     const { name, value } = event.target
     if (isQuoteDraftField(name)) {
       dispatch(quoteDraftFieldChanged({ name, value }))
@@ -84,6 +99,7 @@ export default function VenuePage() {
   }
 
   const handleVenueSelect = (venueName: string) => {
+    cancelScheduledQuoteReset()
     dispatch(quoteDraftFieldChanged({ name: 'roomName', value: venueName }))
 
     if (quoteDraft.date) {
@@ -92,6 +108,8 @@ export default function VenuePage() {
   }
 
   const handleQuoteDateSelect = (date: string) => {
+    cancelScheduledQuoteReset()
+
     if (!selectedRoom) {
       dispatch(quoteStatusSet('Please select a venue before choosing a date.'))
       return
@@ -120,6 +138,12 @@ export default function VenuePage() {
       return
     }
 
+    const email = quoteDraft.email.trim()
+    if (!isValidEmailAddress(email)) {
+      dispatch(quoteStatusSet('Please enter a valid email address for the quote request.'))
+      return
+    }
+
     const availability = getRoomAvailability(selectedRoom.name, date)
     if (!availability.success || !availability.available) {
       dispatch(quoteStatusSet(`${availability.message} Quote request was not sent.`))
@@ -135,11 +159,28 @@ export default function VenuePage() {
       return
     }
 
+    const quoteRequest = {
+      id: `${selectedRoom.id}-${date}-${Date.now()}`,
+      venueId: selectedRoom.id,
+      venueName: selectedRoom.name,
+      date,
+      email,
+      createdAt: new Date().toISOString(),
+    }
+
+    appendStoredVenueBooking(quoteRequest)
+    dispatch(venueQuoteRequested(quoteRequest))
+    dispatch(quoteDraftFieldChanged({ name: 'email', value: email }))
     dispatch(
       quoteStatusSet(
-        `Quote requested for ${availability.roomName} on ${availability.date} by ${quoteDraft.email}.`,
+        `Quote requested for ${availability.roomName} on ${availability.date} by ${email}. The date is now held.`,
       ),
     )
+    cancelScheduledQuoteReset()
+    quoteResetTimerRef.current = window.setTimeout(() => {
+      dispatch(quoteDraftCleared())
+      quoteResetTimerRef.current = null
+    }, QUOTE_SUCCESS_RESET_DELAY_MS)
   }
 
   return (
@@ -175,15 +216,6 @@ export default function VenuePage() {
         onVenueSelect={handleVenueSelect}
         venueOptions={venueOptions}
       />
-
-      {paymentToast && (
-        <div className="venue-toast" role="status" aria-live="polite">
-          <strong>Your payment is successful.</strong>
-          <span>
-            We will shortly send the confirmation document to {paymentToast.email}.
-          </span>
-        </div>
-      )}
 
       {/* 6. Footer */}
       <SiteFooter />

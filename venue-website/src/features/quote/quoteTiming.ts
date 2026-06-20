@@ -1,0 +1,1 @@
+export const QUOTE_SUCCESS_RESET_DELAY_MS = 3000

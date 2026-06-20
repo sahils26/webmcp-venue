@@ -86,11 +86,11 @@ export default function QuoteRequestSection({
               </div>
               <div>
                 <dt>Date hold</dt>
-                <dd>Blocked after payment</dd>
+                <dd>Held after quote submission</dd>
               </div>
               <div>
                 <dt>Confirmation</dt>
-                <dd>Document sent by email</dd>
+                <dd>Team follow-up by email</dd>
               </div>
               <div>
                 <dt>Planning help</dt>

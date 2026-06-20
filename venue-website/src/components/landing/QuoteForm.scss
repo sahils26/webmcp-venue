@@ -169,10 +169,21 @@
 .quote-status {
   margin-top: 16px;
   padding: 10px 12px;
-  border: 1px solid rgba(theme.$color-success-border, 0.24);
+  border: 1px solid transparent;
   border-radius: theme.$radius-control;
-  background: theme.$color-success-bg;
-  color: theme.$color-success;
   font-size: 0.9rem;
+  font-weight: 700;
   line-height: 1.5;
+
+  &--success {
+    border-color: rgba(theme.$color-success-border, 0.24);
+    background: theme.$color-success-bg;
+    color: theme.$color-success;
+  }
+
+  &--error {
+    border-color: rgba(theme.$color-error, 0.24);
+    background: #fef2f2;
+    color: theme.$color-error;
+  }
 }
