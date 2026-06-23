@@ -44,8 +44,8 @@ export interface RoomAvailabilityResult {
   date: string
 
   /**
-   * True only when the room exists, date is valid, date appears in the JSON
-   * availability list, and any supplied event type suits the venue.
+   * True only when the room exists, the date is valid and not blocked, and any
+   * supplied event type suits the venue.
    */
   available: boolean
 
@@ -163,6 +163,9 @@ export interface LocalizedVenueSearchResult {
   /** Next available date in yyyy-mm-dd format. */
   next_available_date: string
 
+  /** Dates currently blocked by confirmed bookings or active quote holds. */
+  blocked_dates?: string[]
+
   /** Full amenity set for the expanded state without translated labels. */
   detailed_amenities: DetailedVenueAmenity[]
 
@@ -235,6 +238,9 @@ export interface VenueSearchResult {
   /** Next available date in yyyy-mm-dd format. */
   next_available_date: string
 
+  /** Dates currently blocked by confirmed bookings or active quote holds. */
+  blocked_dates: string[]
+
   /** Expanded venue description. */
   description: string
 
@@ -252,4 +258,42 @@ export interface VenueSearchResult {
 
   /** Venue room dimensions. */
   dimensions: string
+}
+
+export interface VenueAvailabilityResponse {
+  venue_id: string
+  date: string
+  available: boolean
+  message: string
+}
+
+export interface QuoteCreateRequest {
+  room_name: string
+  date: string
+  email: string
+  event_type?: string
+  guest_count?: number
+  message?: string
+}
+
+export interface QuoteResponse extends QuoteCreateRequest {
+  id: number
+  venue_id: string
+  status: 'new' | 'contacted' | 'closed'
+  created_at: string
+}
+
+export interface BookingCreateRequest {
+  venue_id: string
+  date: string
+  contact_name: string
+  contact_email: string
+  event_type?: string
+  guest_count?: number
+}
+
+export interface BookingResponse extends BookingCreateRequest {
+  id: number
+  status: 'pending' | 'confirmed' | 'cancelled'
+  created_at: string
 }

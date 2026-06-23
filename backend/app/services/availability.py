@@ -5,7 +5,8 @@ from datetime import date
 from sqlmodel import Session, select
 
 from ..models.booking import Booking, BookingStatus
-from ..models.venue import Venue, VenueAvailableDate, VenueTranslation
+from ..models.quote import QuoteRequest, QuoteStatus
+from ..models.venue import Venue, VenueTranslation
 
 
 @dataclass(frozen=True)
@@ -48,20 +49,6 @@ def get_availability(
             reason=f"{day.isoformat()} is in the past.",
         )
 
-    offered = session.exec(
-        select(VenueAvailableDate).where(
-            VenueAvailableDate.venue_id == venue.id,
-            VenueAvailableDate.date == day,
-        )
-    ).first()
-    if offered is None:
-        return AvailabilityResult(
-            venue=venue,
-            date=day,
-            available=False,
-            reason=f"{venue.id} is not offered on {day.isoformat()}.",
-        )
-
     booking = session.exec(
         select(Booking).where(
             Booking.venue_id == venue.id,
@@ -75,6 +62,21 @@ def get_availability(
             date=day,
             available=False,
             reason=f"{venue.id} is already booked on {day.isoformat()}.",
+        )
+
+    quote_hold = session.exec(
+        select(QuoteRequest).where(
+            QuoteRequest.venue_id == venue.id,
+            QuoteRequest.date == day,
+            QuoteRequest.status.in_([QuoteStatus.new, QuoteStatus.contacted]),
+        )
+    ).first()
+    if quote_hold is not None:
+        return AvailabilityResult(
+            venue=venue,
+            date=day,
+            available=False,
+            reason=f"{venue.id} is already held on {day.isoformat()}.",
         )
 
     return AvailabilityResult(

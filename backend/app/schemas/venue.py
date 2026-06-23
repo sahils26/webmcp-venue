@@ -27,7 +27,9 @@ class LocalizedVenueOut(BaseModel):
     price_per_day: int
     thumbnail_url: str
     top_amenities: list[str]
+    event_types: list[str]
     next_available_date: str
+    blocked_dates: list[str]
     detailed_amenities: list[DetailedAmenity]
     all_available_dates: list[str]
     gallery_images: list[str]

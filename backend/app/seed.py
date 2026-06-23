@@ -15,6 +15,7 @@ from .config import BASE_DIR
 from .database import create_db_and_tables, engine
 from .models.amenity import Amenity, AmenityTranslation, VenueAmenity
 from .models.booking import Booking
+from .models.event_type import EventType, EventTypeTranslation, VenueEventType
 from .models.quote import QuoteRequest
 from .models.venue import Venue, VenueAvailableDate, VenueImage, VenueTranslation
 
@@ -28,11 +29,14 @@ def _load_catalog(path: Path) -> dict:
 
 def _clear_catalog_details(session: Session) -> None:
     for model in (
+        VenueEventType,
+        EventTypeTranslation,
         VenueAmenity,
         AmenityTranslation,
         VenueImage,
         VenueAvailableDate,
         VenueTranslation,
+        EventType,
         Amenity,
     ):
         session.exec(delete(model))
@@ -73,14 +77,18 @@ def seed(path: Path = CATALOG_PATH) -> int:
 
         # Amenities are global; collect icons across all venues first.
         amenity_icons: dict[str, str] = {}
+        event_type_ids: set[str] = set()
         for venue in venues:
             for amenity in venue.get("detailed_amenities", []):
                 amenity_icons.setdefault(amenity["id"], amenity.get("icon", ""))
             for amenity_id in venue.get("top_amenities", []):
                 amenity_icons.setdefault(amenity_id, "")
+            event_type_ids.update(venue.get("event_types", []))
 
         for amenity_id, icon in amenity_icons.items():
             session.add(Amenity(id=amenity_id, icon=icon))
+        for event_type_id in event_type_ids:
+            session.add(EventType(id=event_type_id))
         session.flush()
 
         # Flush core venue rows before inserting child rows. This keeps SQLite
@@ -118,6 +126,15 @@ def seed(path: Path = CATALOG_PATH) -> int:
 
             for index, url in enumerate(venue.get("gallery_images", [])):
                 session.add(VenueImage(venue_id=venue["id"], url=url, sort_order=index))
+
+            for event_type_index, event_type_id in enumerate(venue.get("event_types", [])):
+                session.add(
+                    VenueEventType(
+                        venue_id=venue["id"],
+                        event_type_id=event_type_id,
+                        sort_order=event_type_index,
+                    )
+                )
 
             top_ids = venue.get("top_amenities", [])
             top = set(top_ids)

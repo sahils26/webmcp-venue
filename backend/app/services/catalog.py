@@ -1,15 +1,13 @@
-"""Builds the localized venue catalog (frontend-compatible shape) from the DB.
-
-A confirmed booking removes that date from a venue's advertised availability so
-the catalog reflects real bookings, not just the static open dates.
-"""
+"""Build the frontend catalog with live booking and quote-hold state."""
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 from sqlmodel import Session, select
 
 from ..models.amenity import Amenity, AmenityTranslation, VenueAmenity
 from ..models.booking import Booking, BookingStatus
+from ..models.event_type import VenueEventType
+from ..models.quote import QuoteRequest, QuoteStatus
 from ..models.venue import Venue, VenueAvailableDate, VenueImage, VenueTranslation
 from ..schemas.venue import (
     DetailedAmenity,
@@ -19,6 +17,13 @@ from ..schemas.venue import (
 )
 
 DEFAULT_LOCALE = "en"
+
+
+def _next_open_date(blocked_dates: set[str]) -> str:
+    candidate = date.today()
+    while candidate.isoformat() in blocked_dates:
+        candidate += timedelta(days=1)
+    return candidate.isoformat()
 
 
 def _sorted_locales(locales: set[str]) -> list[str]:
@@ -40,12 +45,19 @@ def build_catalog(session: Session) -> VenueCatalogOut:
     ).all():
         open_dates[row.venue_id].append(row.date.isoformat())
 
-    # Confirmed bookings block out advertised dates.
-    booked: dict[str, set[str]] = defaultdict(set)
+    blocked: dict[str, set[str]] = defaultdict(set)
     for row in session.exec(
         select(Booking).where(Booking.status == BookingStatus.confirmed)
     ).all():
-        booked[row.venue_id].add(row.date.isoformat())
+        blocked[row.venue_id].add(row.date.isoformat())
+
+    for row in session.exec(
+        select(QuoteRequest).where(
+            QuoteRequest.status.in_([QuoteStatus.new, QuoteStatus.contacted])
+        )
+    ).all():
+        if row.venue_id is not None and row.date is not None:
+            blocked[row.venue_id].add(row.date.isoformat())
 
     images: dict[str, list[str]] = defaultdict(list)
     for row in session.exec(
@@ -56,6 +68,15 @@ def build_catalog(session: Session) -> VenueCatalogOut:
     venue_amenities: dict[str, list[VenueAmenity]] = defaultdict(list)
     for row in session.exec(select(VenueAmenity)).all():
         venue_amenities[row.venue_id].append(row)
+
+    venue_event_types: dict[str, list[str]] = defaultdict(list)
+    for row in session.exec(
+        select(VenueEventType).order_by(
+            VenueEventType.venue_id,
+            VenueEventType.sort_order,
+        )
+    ).all():
+        venue_event_types[row.venue_id].append(row.event_type_id)
 
     amenity_icons = {a.id: a.icon for a in session.exec(select(Amenity)).all()}
 
@@ -76,13 +97,9 @@ def build_catalog(session: Session) -> VenueCatalogOut:
         available_dates = [
             d
             for d in open_dates[venue.id]
-            if d >= today and d not in booked[venue.id]
+            if d >= today and d not in blocked[venue.id]
         ]
-        next_available = (
-            venue.next_available_date.isoformat()
-            if venue.next_available_date and venue.next_available_date.isoformat() in available_dates
-            else (available_dates[0] if available_dates else "")
-        )
+        next_available = _next_open_date(blocked[venue.id])
 
         venue_translations: dict[str, VenueTranslationOut] = {}
         for tr in translations[venue.id]:
@@ -109,7 +126,9 @@ def build_catalog(session: Session) -> VenueCatalogOut:
                 price_per_day=venue.price_per_day,
                 thumbnail_url=venue.thumbnail_url,
                 top_amenities=top_amenities,
+                event_types=venue_event_types[venue.id],
                 next_available_date=next_available,
+                blocked_dates=sorted(d for d in blocked[venue.id] if d >= today),
                 detailed_amenities=[
                     DetailedAmenity(id=a, icon=amenity_icons.get(a, "")) for a in amenity_ids
                 ],

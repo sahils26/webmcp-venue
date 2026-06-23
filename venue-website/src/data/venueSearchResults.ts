@@ -51,15 +51,17 @@ const venueSearchResultCatalog = venueSearchResultCatalogJson as unknown as Venu
 function getVenueTranslation(
   venue: LocalizedVenueSearchResult,
   locale: VenueLocale,
+  defaultLocale: VenueLocale,
 ): VenueSearchResultTranslation {
-  return venue.translations[locale] ?? venue.translations[venueSearchResultCatalog.default_locale]
+  return venue.translations[locale] ?? venue.translations[defaultLocale]
 }
 
 function toVenueSearchResult(
   venue: LocalizedVenueSearchResult,
   locale: VenueLocale,
+  defaultLocale: VenueLocale,
 ): VenueSearchResult {
-  const translation = getVenueTranslation(venue, locale)
+  const translation = getVenueTranslation(venue, locale, defaultLocale)
   const images = venueImages[venue.id]
 
   return {
@@ -73,6 +75,7 @@ function toVenueSearchResult(
     event_types: venue.event_types ?? [],
     compact_amenity_labels: translation.compact_amenity_labels,
     next_available_date: venue.next_available_date,
+    blocked_dates: venue.blocked_dates ?? [],
     description: translation.description,
     detailed_amenities: venue.detailed_amenities.map((amenity) => ({
       ...amenity,
@@ -94,7 +97,19 @@ function toVenueSearchResult(
 export function getVenueSearchResults(
   locale: VenueLocale = venueSearchResultCatalog.default_locale,
 ): VenueSearchResult[] {
-  return venueSearchResultCatalog.venues.map((venue) => toVenueSearchResult(venue, locale))
+  return getVenueSearchResultsFromCatalog(venueSearchResultCatalog, locale)
+}
+
+/**
+ * Applies frontend localization and bundled image assets to an API catalog.
+ */
+export function getVenueSearchResultsFromCatalog(
+  catalog: VenueSearchResultCatalog,
+  locale: VenueLocale = catalog.default_locale,
+): VenueSearchResult[] {
+  return catalog.venues.map((venue) =>
+    toVenueSearchResult(venue, locale, catalog.default_locale),
+  )
 }
 
 /**

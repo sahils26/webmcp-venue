@@ -1,5 +1,13 @@
 import { api } from '../../services/api/baseApi'
-import type { OSMVenue } from '../../types/venue'
+import type {
+  BookingCreateRequest,
+  BookingResponse,
+  OSMVenue,
+  QuoteCreateRequest,
+  QuoteResponse,
+  VenueAvailabilityResponse,
+  VenueSearchResultCatalog,
+} from '../../types/venue'
 
 interface OverpassElement {
   id: number
@@ -40,6 +48,36 @@ export function mapOverpassElementToVenue(element: OverpassElement): OSMVenue {
 
 export const venueApi = api.injectEndpoints({
   endpoints: (builder) => ({
+    getVenueCatalog: builder.query<VenueSearchResultCatalog, void>({
+      query: () => ({ url: '/api/venues' }),
+      providesTags: ['Venue'],
+    }),
+    checkVenueAvailability: builder.query<
+      VenueAvailabilityResponse,
+      { venueId: string; date: string }
+    >({
+      query: ({ venueId, date }) => ({
+        url: `/api/venues/${venueId}/availability`,
+        params: { date },
+      }),
+      providesTags: ['Venue'],
+    }),
+    createQuote: builder.mutation<QuoteResponse, QuoteCreateRequest>({
+      query: (payload) => ({
+        url: '/api/quotes',
+        method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: ['Venue'],
+    }),
+    createBooking: builder.mutation<BookingResponse, BookingCreateRequest>({
+      query: (payload) => ({
+        url: '/api/bookings',
+        method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: ['Venue'],
+    }),
     getNearbyVenues: builder.query<OSMVenue[], void>({
       query: () => ({
         url: OVERPASS_ENDPOINT,
@@ -56,4 +94,12 @@ export const venueApi = api.injectEndpoints({
   }),
 })
 
-export const { useGetNearbyVenuesQuery } = venueApi
+export const {
+  useCheckVenueAvailabilityQuery,
+  useCreateBookingMutation,
+  useCreateQuoteMutation,
+  useGetNearbyVenuesQuery,
+  useGetVenueCatalogQuery,
+  useLazyCheckVenueAvailabilityQuery,
+  useLazyGetVenueCatalogQuery,
+} = venueApi

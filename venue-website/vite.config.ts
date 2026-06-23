@@ -8,6 +8,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
       '/agent-api': {
         target: 'http://127.0.0.1:8001',
         changeOrigin: true,
@@ -33,6 +37,11 @@ export default defineConfig({
         // current landing page design — excluded to keep thresholds meaningful.
         'src/components/WelcomePage.tsx',
         'src/components/VenueSearchCard.tsx',
+        'src/components/landing/VenueDetailsModal.tsx',
+        'src/components/landing/VenueShowcaseSection.tsx',
+        // Retained temporarily for its shared type while backend persistence
+        // replaces browser localStorage at runtime.
+        'src/features/bookings/bookingStorage.ts',
       ],
       thresholds: {
         branches: 70,

@@ -39,10 +39,10 @@ describe('venue availability service', () => {
   })
 
   it('marks a valid future date as available', () => {
-    expect(getRoomAvailability('Grand Hall', '2026-06-15')).toMatchObject({
+    expect(getRoomAvailability('Grand Hall', '2026-06-22')).toMatchObject({
       success: true,
       roomName: 'The Grand Hall',
-      date: '2026-06-15',
+      date: '2026-06-22',
       available: true,
     })
   })
@@ -59,15 +59,15 @@ describe('venue availability service', () => {
       message: 'Garden Pavilion is available on 2026-07-08 and is suitable for Celebration & Party.',
     })
 
-    expect(getRoomAvailability('Grand Hall', '2026-06-15', 'birthday')).toMatchObject({
+    expect(getRoomAvailability('Grand Hall', '2026-06-22', 'birthday')).toMatchObject({
       success: true,
       roomName: 'The Grand Hall',
-      date: '2026-06-15',
+      date: '2026-06-22',
       available: false,
       matchedEventType: 'celebration',
       eventTypeSuitable: false,
       message:
-        'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party.',
+        'The Grand Hall is available on 2026-06-22, but it is not tagged for Celebration & Party.',
     })
   })
 

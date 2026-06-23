@@ -58,20 +58,24 @@ describe('VenueDetailPage', () => {
 
     const quotePanel = screen.getByRole('complementary', { name: 'Quote request' })
     await user.click(
-      within(quotePanel).getByRole('button', { name: /June 15, 2026, available/ }),
+      within(quotePanel).getByRole('button', { name: /June 22, 2026, available/ }),
     )
     await user.type(within(quotePanel).getByLabelText('Your Email'), 'planner@example.com')
     vi.useFakeTimers()
     fireEvent.click(within(quotePanel).getByRole('button', { name: 'Submit Quote Request' }))
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
 
     expect(
       within(quotePanel).getByText(
-        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com. The date is now held.',
+        'Quote requested for The Grand Hall on 2026-06-22 by planner@example.com. The date is now held.',
       ),
     ).toBeInTheDocument()
     expect(within(quotePanel).getByRole('status')).toHaveClass('quote-status--success')
     expect(
-      within(quotePanel).getByRole('button', { name: /June 15, 2026, booked/ }),
+      within(quotePanel).getByRole('button', { name: /June 22, 2026, booked/ }),
     ).toBeDisabled()
 
     act(() => {
@@ -84,11 +88,11 @@ describe('VenueDetailPage', () => {
     expect(within(quotePanel).getByLabelText('Your Email')).toHaveValue('')
     expect(
       within(quotePanel).queryByText(
-        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com. The date is now held.',
+        'Quote requested for The Grand Hall on 2026-06-22 by planner@example.com. The date is now held.',
       ),
     ).not.toBeInTheDocument()
     expect(
-      within(quotePanel).getByRole('button', { name: /June 15, 2026, booked/ }),
+      within(quotePanel).getByRole('button', { name: /June 22, 2026, booked/ }),
     ).toBeDisabled()
   })
 
@@ -98,7 +102,7 @@ describe('VenueDetailPage', () => {
 
     const quotePanel = screen.getByRole('complementary', { name: 'Quote request' })
     await user.click(
-      within(quotePanel).getByRole('button', { name: /June 15, 2026, available/ }),
+      within(quotePanel).getByRole('button', { name: /June 22, 2026, available/ }),
     )
     await user.type(within(quotePanel).getByLabelText('Your Email'), 'planner@example.com')
     await user.click(within(quotePanel).getByRole('button', { name: 'Submit Quote Request' }))
@@ -111,10 +115,10 @@ describe('VenueDetailPage', () => {
     )
 
     expect(
-      within(homepageQuoteSection).getByRole('button', { name: /June 15, 2026, booked/ }),
+      within(homepageQuoteSection).getByRole('button', { name: /June 22, 2026, booked/ }),
     ).toBeDisabled()
     expect(
-      within(homepageQuoteSection).queryByRole('button', { name: /June 15, 2026, available/ }),
+      within(homepageQuoteSection).queryByRole('button', { name: /June 22, 2026, available/ }),
     ).not.toBeInTheDocument()
   })
 

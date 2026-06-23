@@ -56,7 +56,7 @@ async function selectHomepageVenueAndDate(user: ReturnType<typeof userEvent.setu
   await user.click(within(quoteSection).getByRole('option', { name: /The Grand Hall/ }))
   await user.click(
     within(quoteSection).getByRole('button', {
-      name: /June 15, 2026, available/,
+      name: /June 22, 2026, available/,
     }),
   )
 
@@ -227,16 +227,20 @@ describe('VenuePage', () => {
     await user.type(within(quoteSection).getByLabelText('Your Email'), 'planner@example.com')
     vi.useFakeTimers()
     fireEvent.click(within(quoteSection).getByRole('button', { name: 'Submit Quote Request' }))
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
 
     expect(window.location.pathname).toBe('/')
     expect(
       within(quoteSection).getByText(
-        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com. The date is now held.',
+        'Quote requested for The Grand Hall on 2026-06-22 by planner@example.com. The date is now held.',
       ),
     ).toBeInTheDocument()
     expect(within(quoteSection).getByRole('status')).toHaveClass('quote-status--success')
     expect(
-      within(quoteSection).getByRole('button', { name: /June 15, 2026, booked/ }),
+      within(quoteSection).getByRole('button', { name: /June 22, 2026, booked/ }),
     ).toBeDisabled()
 
     act(() => {
@@ -249,7 +253,7 @@ describe('VenuePage', () => {
     expect(within(quoteSection).getByLabelText('Your Email')).toHaveValue('')
     expect(
       within(quoteSection).queryByText(
-        'Quote requested for The Grand Hall on 2026-06-15 by planner@example.com. The date is now held.',
+        'Quote requested for The Grand Hall on 2026-06-22 by planner@example.com. The date is now held.',
       ),
     ).not.toBeInTheDocument()
 
@@ -257,7 +261,7 @@ describe('VenuePage', () => {
     await user.click(within(quoteSection).getByRole('option', { name: /The Grand Hall/ }))
 
     expect(
-      within(quoteSection).getByRole('button', { name: /June 15, 2026, booked/ }),
+      within(quoteSection).getByRole('button', { name: /June 22, 2026, booked/ }),
     ).toBeDisabled()
   })
 
@@ -278,7 +282,7 @@ describe('VenuePage', () => {
 
     const quotePanel = screen.getByRole('complementary', { name: 'Quote request' })
     expect(
-      within(quotePanel).getByRole('button', { name: /June 15, 2026, booked/ }),
+      within(quotePanel).getByRole('button', { name: /June 22, 2026, booked/ }),
     ).toBeDisabled()
   })
 
@@ -476,11 +480,11 @@ describe('VenuePage', () => {
     await waitForVenueTools()
 
     await expect(
-      callVenueTool('check_availability', { roomName: 'Grand Hall', date: '2026-06-15' }),
+      callVenueTool('check_availability', { roomName: 'Grand Hall', date: '2026-06-22' }),
     ).resolves.toMatchObject({
       success: true,
       roomName: 'The Grand Hall',
-      date: '2026-06-15',
+      date: '2026-06-22',
       available: true,
     })
 
@@ -502,13 +506,13 @@ describe('VenuePage', () => {
     await expect(
       callVenueTool('check_availability', {
         roomName: 'Grand Hall',
-        date: '2026-06-15',
+        date: '2026-06-22',
         eventType: 'birthday',
       }),
     ).resolves.toMatchObject({
       success: true,
       roomName: 'The Grand Hall',
-      date: '2026-06-15',
+      date: '2026-06-22',
       available: false,
       matchedEventType: 'celebration',
       eventTypeSuitable: false,
@@ -545,7 +549,7 @@ describe('VenuePage', () => {
 
     const unconstrainedAvailability = (await callVenueTool('check_availability', {
       roomName: 'Grand Hall',
-      date: '2026-06-15',
+      date: '2026-06-22',
     })) as Record<string, unknown>
 
     expect(unconstrainedAvailability).toMatchObject({
@@ -579,13 +583,13 @@ describe('VenuePage', () => {
     await expect(
       callVenueTool('prepare_quote_request', {
         roomName: 'Grand Hall',
-        date: '2026-06-15',
+        date: '2026-06-22',
         email: 'planner@example.com',
       }),
     ).resolves.toMatchObject({ success: true, available: true })
 
     expect(screen.getByLabelText('Venue')).toHaveValue('The Grand Hall')
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-06-15')
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-06-22')
     expect(screen.getByLabelText('Your Email')).toHaveValue('planner@example.com')
   })
 
@@ -602,7 +606,7 @@ describe('VenuePage', () => {
               name: 'prepare_quote_request',
               arguments: {
                 roomName: 'Grand Hall',
-                date: '2026-06-15',
+                date: '2026-06-22',
                 email: 'planner@example.com',
               },
             },
@@ -617,7 +621,7 @@ describe('VenuePage', () => {
     await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
     await user.type(
       screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
-      'Fill the quote form for the Grand Hall on June 15, 2026 using planner@example.com',
+      'Fill the quote form for the Grand Hall on June 22, 2026 using planner@example.com',
     )
     await user.click(screen.getByRole('button', { name: 'Send' }))
 
@@ -626,7 +630,7 @@ describe('VenuePage', () => {
     await waitFor(() => {
       expect(within(quoteSection).getByLabelText('Venue')).toHaveValue('The Grand Hall')
     })
-    expect(within(quoteSection).getByLabelText('Date')).toHaveValue('2026-06-15')
+    expect(within(quoteSection).getByLabelText('Date')).toHaveValue('2026-06-22')
     expect(within(quoteSection).getByLabelText('Your Email')).toHaveValue('planner@example.com')
     expect(screen.getByLabelText('spaces360 Assistant minimized')).toBeInTheDocument()
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
@@ -667,7 +671,7 @@ describe('VenuePage', () => {
     await expect(
       callVenueTool('prepare_quote_request', {
         roomName: 'Grand Hall',
-        date: '2026-06-15',
+        date: '2026-06-22',
         email: 'planner@example.com',
         eventType: 'birthday',
       }),
@@ -677,13 +681,13 @@ describe('VenuePage', () => {
       matchedEventType: 'celebration',
       eventTypeSuitable: false,
       message:
-        'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
+        'The Grand Hall is available on 2026-06-22, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
     })
 
     expect(screen.getByLabelText('Venue')).toHaveValue('')
     expect(
       screen.getByText(
-        'The Grand Hall is available on 2026-06-15, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
+        'The Grand Hall is available on 2026-06-22, but it is not tagged for Celebration & Party. Quote request form was not prepared.',
       ),
     ).toBeInTheDocument()
   })

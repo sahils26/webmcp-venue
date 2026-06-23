@@ -83,13 +83,15 @@ Copy `.env.example` to `.env`. Key variables:
 | GET    | `/api/venues/{venue_id}`               | Single venue.                                      |
 | GET    | `/api/venues/{venue_id}/availability`  | `?date=YYYY-MM-DD` availability check.             |
 | POST   | `/api/bookings`                        | Create a confirmed booking (409 on double-booking).|
-| POST   | `/api/quotes`                          | Persist a quote request.                           |
+| POST   | `/api/quotes`                          | Persist a quote request and hold its date.         |
 | GET    | `/api/quotes`                          | List quotes with `X-Admin-API-Key`.                |
 
-Confirmed bookings are blocked from double-booking by a partial unique index on
-`(venue_id, date)` and are subtracted from a venue's advertised availability in
-the catalog response. Booking and quote requests reject unknown venues,
-unavailable dates, non-positive guest counts, and counts above venue capacity.
+All future dates are available unless blocked by a confirmed booking or an active
+quote hold. Confirmed bookings and active quotes each use partial unique indexes
+to prevent duplicate dates. The catalog returns `blocked_dates`, live
+`next_available_date`, and venue `event_types`. Booking and quote requests reject
+unknown venues, past/blocked dates, non-positive guest counts, and counts above
+venue capacity.
 
 ## Migrations
 
@@ -101,9 +103,9 @@ alembic upgrade head
 
 ## Frontend integration
 
-`GET /api/venues` returns exactly the `VenueSearchResultCatalog` shape the
-website already consumes from `venueSearchResults.json`, so the website can point
-its loader at `${VITE_API_BASE_URL}/api/venues` with no shape changes.
+`GET /api/venues` is the frontend source of truth. The bundled JSON remains a
+startup fallback, while the API adds live `blocked_dates` and preserves the
+existing localized catalog and event-type fields.
 
 Recommended frontend mapping:
 

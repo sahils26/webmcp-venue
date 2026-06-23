@@ -3,6 +3,7 @@ from datetime import date as date_type
 from datetime import datetime, timezone
 from enum import Enum
 
+from sqlalchemy import Index, text
 from sqlmodel import Field, SQLModel
 
 
@@ -18,6 +19,16 @@ def _utcnow() -> datetime:
 
 class QuoteRequest(SQLModel, table=True):
     __tablename__ = "quote_requests"
+    __table_args__ = (
+        Index(
+            "uq_quote_active_per_day",
+            "venue_id",
+            "date",
+            unique=True,
+            postgresql_where=text("status IN ('new', 'contacted')"),
+            sqlite_where=text("status IN ('new', 'contacted')"),
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     # The room name as typed; ``venue_id`` is set when it resolves to a catalog venue.

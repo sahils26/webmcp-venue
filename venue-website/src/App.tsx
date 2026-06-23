@@ -1,12 +1,17 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAppSelector } from './app/hooks'
 import AgentChat from './components/AgentChat'
 import VenueAgentTools from './components/VenueAgentTools'
-import { venueSearchResults } from './data/venueSearchResults'
+import {
+  getVenueSearchResultsFromCatalog,
+  venueSearchResults,
+} from './data/venueSearchResults'
 import { selectQuoteHandoffRequestKey } from './features/quote/quoteSlice'
+import { useGetVenueCatalogQuery } from './features/venues/venueApi'
 import VenueDetailPage from './pages/VenueDetailPage'
 import VenuePage from './pages/VenuePage'
+import type { VenueSearchResult } from './types/venue'
 
 function RouteScrollRestoration() {
   const location = useLocation()
@@ -25,10 +30,10 @@ function RouteScrollRestoration() {
   return null
 }
 
-function getPageContext(pathname: string): string {
+function getPageContext(pathname: string, venues: VenueSearchResult[]): string {
   const detailMatch = pathname.match(/^\/venues\/([^/]+)$/)
   const venue = detailMatch
-    ? venueSearchResults.find((candidate) => candidate.id === detailMatch[1])
+    ? venues.find((candidate) => candidate.id === detailMatch[1])
     : undefined
 
   if (venue) {
@@ -41,19 +46,27 @@ function getPageContext(pathname: string): string {
 function AppContent() {
   const location = useLocation()
   const quoteHandoffRequestKey = useAppSelector(selectQuoteHandoffRequestKey)
+  const { data: venueCatalog } = useGetVenueCatalogQuery()
+  const venues = useMemo(
+    () =>
+      venueCatalog
+        ? getVenueSearchResultsFromCatalog(venueCatalog)
+        : venueSearchResults,
+    [venueCatalog],
+  )
 
   return (
     <>
       <RouteScrollRestoration />
-      <VenueAgentTools />
+      <VenueAgentTools venues={venues} />
       <Routes>
-        <Route path="/" element={<VenuePage />} />
-        <Route path="/venues/:venueId" element={<VenueDetailPage />} />
+        <Route path="/" element={<VenuePage venues={venues} />} />
+        <Route path="/venues/:venueId" element={<VenueDetailPage venues={venues} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <AgentChat
         minimizeRequestKey={quoteHandoffRequestKey}
-        pageContext={getPageContext(location.pathname)}
+        pageContext={getPageContext(location.pathname, venues)}
       />
     </>
   )

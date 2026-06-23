@@ -24,6 +24,7 @@ Instead of fragile HTML scraping or complex browser automation, the venue websit
 | Component | Technology |
 |-----------|------------|
 | **Venue Website** | React + TypeScript + Vite + SCSS |
+| **Venue API** | FastAPI + SQLModel + SQLite |
 | **WebMCP Integration** | `navigator.modelContext` (Chrome 146+ Beta) |
 | **AI Agent** | Python + LangGraph + LangChain |
 | **LLM** | Mistral |
@@ -82,10 +83,13 @@ The venue website registers these tools via `navigator.modelContext`:
 
 | Tool | Purpose | Example |
 |------|---------|---------|
-| `check_availability` | Query open dates for capacity | `{date: "2026-06-15", capacity: 50}` |
-| `get_room_details` | Retrieve room specs & photos | `{room_id: "grand-hall"}` |
-| `get_pricing` | Fetch pricing tiers | `{room_id: "grand-hall", date: "2026-06-15"}` |
-| `request_quote` | Submit booking inquiry | `{room_id, date, attendees, contact}` |
+| `list_available_venues` | List venues, optionally for a date | `{date: "2026-07-15"}` |
+| `search_venues` | Search by capacity, date, amenities, and event type | `{guestCount: 50, date: "2026-07-15"}` |
+| `recommend_venues_by_event_type` | Recommend venues for an event type | `{eventType: "conference"}` |
+| `check_availability` | Check one venue and date | `{roomName: "The Grand Hall", date: "2026-07-15"}` |
+| `get_room_details` | Retrieve room specifications | `{roomName: "The Grand Hall"}` |
+| `get_pricing` | Fetch the daily venue price | `{roomName: "The Grand Hall"}` |
+| `prepare_quote_request` | Fill the visible quote form for user review | `{roomName: "The Grand Hall", date: "2026-07-15"}` |
 
 ---
 
@@ -98,6 +102,7 @@ webmcp-venue-agent/
 │   └── src/
 │       ├── webmcp/       # Tool registration & schemas
 │       └── data/         # Mock venue data (JSON)
+├── backend/              # FastAPI venue, availability, booking, and quote APIs
 ├── agent/                # Python LangGraph agent
 │   └── src/
 │       ├── agent/        # LangGraph workflow

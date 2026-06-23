@@ -19,6 +19,10 @@ The chat widget calls `/agent-api/chat`, which Vite proxies to the Python agent
 at `http://127.0.0.1:8001`. Configure the Mistral key only in `agent/.env`; no
 LLM API key is needed in the frontend.
 
+Venue catalog, availability, quote holds, and booking requests use `/api`, which
+Vite proxies to the local FastAPI backend at `http://127.0.0.1:8000`. Run
+`../scripts/setup-backend.sh` once before starting the complete local demo.
+
 ## Quality checks
 
 ```bash

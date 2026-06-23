@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { callAgentTool, listAgentTools } from './lib/toolRegistry'
+import { httpClient } from './services/api/httpClient'
 import { renderWithProviders } from './tests/renderWithProviders'
 import type { AgentToolParams } from './types/agentTool'
 import App from './App'
@@ -37,6 +38,18 @@ async function callVenueTool(name: string, args: AgentToolParams): Promise<unkno
 }
 
 describe('App', () => {
+  it('scrolls to a section named by the route hash', async () => {
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear()
+
+    renderAppAt('/#quote-request-section')
+
+    await waitFor(() => {
+      expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'smooth',
+      })
+    })
+  })
+
   it('keeps the chat widget available on venue detail pages', () => {
     renderAppAt('/venues/grand-hall')
 
@@ -52,17 +65,17 @@ describe('App', () => {
     await waitForVenueTools()
 
     await expect(
-      callVenueTool('check_availability', { date: '2026-06-15' }),
+      callVenueTool('check_availability', { date: '2026-06-22' }),
     ).resolves.toMatchObject({
       success: true,
       roomName: 'The Grand Hall',
-      date: '2026-06-15',
+      date: '2026-06-22',
       available: true,
     })
 
     await expect(
       callVenueTool('prepare_quote_request', {
-        date: '2026-06-15',
+        date: '2026-06-22',
         email: 'planner@example.com',
       }),
     ).resolves.toMatchObject({ success: true, available: true })
@@ -72,10 +85,13 @@ describe('App', () => {
     await waitFor(() => {
       expect(within(quotePanel).getByLabelText('Venue')).toHaveValue('The Grand Hall')
     })
-    expect(within(quotePanel).getByLabelText('Date')).toHaveValue('2026-06-15')
+    expect(within(quotePanel).getByLabelText('Date')).toHaveValue('2026-06-22')
     expect(within(quotePanel).getByLabelText('Your Email')).toHaveValue('planner@example.com')
     expect(screen.getByLabelText('spaces360 Assistant minimized')).toBeInTheDocument()
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    expect(httpClient.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST', url: '/api/quotes' }),
+    )
   })
 
   it('fills the detail-page quote form through the chat tool flow', async () => {
@@ -89,11 +105,11 @@ describe('App', () => {
           tool_calls: [
             {
               name: 'check_availability',
-              arguments: { date: '2026-06-15' },
+              arguments: { date: '2026-06-22' },
             },
             {
               name: 'prepare_quote_request',
-              arguments: { date: '2026-06-15', email: 'planner@example.com' },
+              arguments: { date: '2026-06-22', email: 'planner@example.com' },
             },
           ],
         }),
@@ -106,18 +122,21 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /spaces360 Assistant/i }))
     await user.type(
       screen.getByPlaceholderText('Ask about rooms, dates, or quotes'),
-      'Check if this venue is available on June 15, 2026 and fill the quote form with planner@example.com',
+      'Check if this venue is available on June 22, 2026 and fill the quote form with planner@example.com',
     )
     await user.click(screen.getByRole('button', { name: 'Send' }))
 
     const quotePanel = screen.getByRole('complementary', { name: 'Quote request' })
 
     await waitFor(() => {
-      expect(within(quotePanel).getByLabelText('Date')).toHaveValue('2026-06-15')
+      expect(within(quotePanel).getByLabelText('Date')).toHaveValue('2026-06-22')
     })
     expect(within(quotePanel).getByLabelText('Venue')).toHaveValue('The Grand Hall')
     expect(within(quotePanel).getByLabelText('Your Email')).toHaveValue('planner@example.com')
     expect(screen.getByLabelText('spaces360 Assistant minimized')).toBeInTheDocument()
+    expect(httpClient.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST', url: '/api/quotes' }),
+    )
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledTimes(1)

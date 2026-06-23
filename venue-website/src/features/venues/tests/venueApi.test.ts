@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setupStore } from '../../../app/store'
+import venueCatalog from '../../../data/venueSearchResults.json'
 import { httpClient } from '../../../services/api/httpClient'
 import { venueApi } from '../venueApi'
 
@@ -53,6 +54,106 @@ describe('venueApi', () => {
           data: expect.stringContaining('area["name"="Jena"]'),
         }),
         url: 'https://overpass-api.de/api/interpreter',
+      }),
+    )
+  })
+
+  it('loads the backend venue catalog', async () => {
+    mockedHttpRequest.mockResolvedValue(createAxiosResponse(venueCatalog))
+
+    const store = setupStore()
+    const result = await store.dispatch(venueApi.endpoints.getVenueCatalog.initiate())
+
+    expect(result.data?.venues).toHaveLength(5)
+    expect(mockedHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'GET', url: '/api/venues' }),
+    )
+  })
+
+  it('checks backend availability for one venue and date', async () => {
+    mockedHttpRequest.mockResolvedValue(
+      createAxiosResponse({
+        venue_id: 'grand-hall',
+        date: '2026-06-22',
+        available: true,
+        message: 'grand-hall is available on 2026-06-22.',
+      }),
+    )
+
+    const store = setupStore()
+    const result = await store.dispatch(
+      venueApi.endpoints.checkVenueAvailability.initiate({
+        venueId: 'grand-hall',
+        date: '2026-06-22',
+      }),
+    )
+
+    expect(result.data?.available).toBe(true)
+    expect(mockedHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        params: { date: '2026-06-22' },
+        url: '/api/venues/grand-hall/availability',
+      }),
+    )
+  })
+
+  it('submits quote holds and confirmed bookings through backend mutations', async () => {
+    mockedHttpRequest
+      .mockResolvedValueOnce(
+        createAxiosResponse({
+          id: 1,
+          room_name: 'The Grand Hall',
+          venue_id: 'grand-hall',
+          date: '2026-06-22',
+          email: 'planner@example.com',
+          status: 'new',
+          created_at: '2026-06-20T12:00:00Z',
+        }),
+      )
+      .mockResolvedValueOnce(
+        createAxiosResponse({
+          id: 2,
+          venue_id: 'grand-hall',
+          date: '2026-06-23',
+          contact_name: 'Planner',
+          contact_email: 'planner@example.com',
+          status: 'confirmed',
+          created_at: '2026-06-20T12:00:00Z',
+        }),
+      )
+
+    const store = setupStore()
+    const quote = await store.dispatch(
+      venueApi.endpoints.createQuote.initiate({
+        room_name: 'The Grand Hall',
+        date: '2026-06-22',
+        email: 'planner@example.com',
+      }),
+    )
+    const booking = await store.dispatch(
+      venueApi.endpoints.createBooking.initiate({
+        venue_id: 'grand-hall',
+        date: '2026-06-23',
+        contact_name: 'Planner',
+        contact_email: 'planner@example.com',
+      }),
+    )
+
+    expect(quote.data?.status).toBe('new')
+    expect(booking.data?.status).toBe('confirmed')
+    expect(mockedHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ room_name: 'The Grand Hall' }),
+        method: 'POST',
+        url: '/api/quotes',
+      }),
+    )
+    expect(mockedHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ venue_id: 'grand-hall' }),
+        method: 'POST',
+        url: '/api/bookings',
       }),
     )
   })

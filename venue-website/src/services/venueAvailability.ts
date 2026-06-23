@@ -125,7 +125,10 @@ function getRoomLookupKeys(venue: VenueSearchResult): string[] {
   ].map(normalizeRoomLookupKey)
 }
 
-function findVenueByRoomName(rawRoomName: unknown): VenueSearchResult | undefined {
+function findVenueByRoomName(
+  rawRoomName: unknown,
+  venues: VenueSearchResult[],
+): VenueSearchResult | undefined {
   const requestedRoomName = typeof rawRoomName === 'string' ? rawRoomName.trim() : ''
 
   if (!requestedRoomName) {
@@ -134,7 +137,7 @@ function findVenueByRoomName(rawRoomName: unknown): VenueSearchResult | undefine
 
   const lookupKey = normalizeRoomLookupKey(requestedRoomName)
 
-  return venueSearchResults.find((venue) => getRoomLookupKeys(venue).includes(lookupKey))
+  return venues.find((venue) => getRoomLookupKeys(venue).includes(lookupKey))
 }
 
 function hasProjector(venue: VenueSearchResult): boolean {
@@ -468,7 +471,10 @@ export const roomNames = venueSearchResults.map((venue) => venue.name)
  * @param rawDate - Optional date to filter against, in yyyy-mm-dd or supported natural language format.
  * @returns Venue summaries safe to pass back to the model.
  */
-export function listAvailableVenues(rawDate?: unknown) {
+export function listAvailableVenues(
+  rawDate?: unknown,
+  venues: VenueSearchResult[] = venueSearchResults,
+) {
   const requestedDate = typeof rawDate === 'string' ? rawDate.trim() : ''
   const date = requestedDate ? normalizeDateKey(requestedDate) : ''
 
@@ -481,7 +487,7 @@ export function listAvailableVenues(rawDate?: unknown) {
     }
   }
 
-  const matchingVenues = date && date < getTodayDateKey() ? [] : venueSearchResults
+  const matchingVenues = date && date < getTodayDateKey() ? [] : venues
 
   return {
     success: true,
@@ -527,7 +533,10 @@ function toEventTypeSummary(venue: VenueSearchResult) {
  * @param rawEventType - Event type id, label, or synonym from the user/model.
  * @returns Recommended venue summaries and a model-safe message.
  */
-export function recommendVenuesByEventType(rawEventType?: unknown) {
+export function recommendVenuesByEventType(
+  rawEventType?: unknown,
+  venues: VenueSearchResult[] = venueSearchResults,
+) {
   const supportedEventTypes = EVENT_TYPES.map((eventType) => ({
     id: eventType.id,
     label: eventType.label,
@@ -540,7 +549,7 @@ export function recommendVenuesByEventType(rawEventType?: unknown) {
       success: false,
       eventType: requested,
       matchedEventType: '',
-      venues: venueSearchResults.map(toEventTypeSummary),
+      venues: venues.map(toEventTypeSummary),
       supportedEventTypes,
       message: requested
         ? `We don't categorise venues for '${requested}'. Choose one of the supported event types, or browse all venues below.`
@@ -549,7 +558,7 @@ export function recommendVenuesByEventType(rawEventType?: unknown) {
   }
 
   const eventTypeLabel = getEventTypeLabel(eventTypeId)
-  const matchingVenues = venueSearchResults.filter((venue) =>
+  const matchingVenues = venues.filter((venue) =>
     venue.event_types.includes(eventTypeId),
   )
 
@@ -558,7 +567,7 @@ export function recommendVenuesByEventType(rawEventType?: unknown) {
       success: true,
       eventType: requested,
       matchedEventType: eventTypeId,
-      venues: venueSearchResults.map(toEventTypeSummary),
+      venues: venues.map(toEventTypeSummary),
       supportedEventTypes,
       message: `No venue in the current catalog is tagged for ${eventTypeLabel}. Here are all venues so you can compare options.`,
     }
@@ -584,7 +593,10 @@ export function recommendVenuesByEventType(rawEventType?: unknown) {
  * @param rawCriteria - Tool arguments from the model, or any unknown input.
  * @returns Search result with exact matches or fallback suggestions.
  */
-export function searchVenues(rawCriteria?: unknown) {
+export function searchVenues(
+  rawCriteria?: unknown,
+  venues: VenueSearchResult[] = venueSearchResults,
+) {
   const rawDate = getStringField(rawCriteria, 'date')
   const criteria = normalizeSearchCriteria(rawCriteria)
 
@@ -598,7 +610,7 @@ export function searchVenues(rawCriteria?: unknown) {
     }
   }
 
-  const scoredVenues = venueSearchResults
+  const scoredVenues = venues
     .map((venue) => scoreVenue(venue, criteria))
     .sort(
       (left, right) =>
@@ -610,7 +622,7 @@ export function searchVenues(rawCriteria?: unknown) {
 
   const exactMatches = scoredVenues.filter((result) => result.exact)
   const selectedMatches = exactMatches.length ? exactMatches : scoredVenues.slice(0, 3)
-  const venues = selectedMatches.map((result) =>
+  const venueMatches = selectedMatches.map((result) =>
     buildVenueSummary(result.venue, result, exactMatches.length ? 'exact' : 'suggestion'),
   )
 
@@ -624,8 +636,8 @@ export function searchVenues(rawCriteria?: unknown) {
     capacity: criteria.capacity,
     requiredAmenities: criteria.requiredAmenities,
     exactMatchCount: exactMatches.length,
-    suggestionCount: exactMatches.length ? 0 : venues.length,
-    venues,
+    suggestionCount: exactMatches.length ? 0 : venueMatches.length,
+    venues: venueMatches,
     message: exactMatches.length
       ? `${exactMatches.length} venue${exactMatches.length === 1 ? ' matches' : 's match'} your request.`
       : "We don't have an exact venue match for every detail, but these are the closest suggestions from the current facilities.",
@@ -638,10 +650,13 @@ export function searchVenues(rawCriteria?: unknown) {
  * @param rawRoomName - Unknown room input from a form field or model tool call.
  * @returns The canonical room name when matched case-insensitively; otherwise the trimmed input.
  */
-export function resolveRoomName(rawRoomName: unknown): string {
+export function resolveRoomName(
+  rawRoomName: unknown,
+  venues: VenueSearchResult[] = venueSearchResults,
+): string {
   const requestedRoomName = typeof rawRoomName === 'string' ? rawRoomName.trim() : ''
 
-  return findVenueByRoomName(requestedRoomName)?.name ?? requestedRoomName
+  return findVenueByRoomName(requestedRoomName, venues)?.name ?? requestedRoomName
 }
 
 /**
@@ -650,8 +665,11 @@ export function resolveRoomName(rawRoomName: unknown): string {
  * @param rawRoomName - Room name from the UI or model.
  * @returns VenueRoom details when the room exists; otherwise undefined.
  */
-export function getRoomByName(rawRoomName: unknown): VenueRoom | undefined {
-  const venue = findVenueByRoomName(rawRoomName)
+export function getRoomByName(
+  rawRoomName: unknown,
+  venues: VenueSearchResult[] = venueSearchResults,
+): VenueRoom | undefined {
+  const venue = findVenueByRoomName(rawRoomName, venues)
 
   return venue ? toVenueRoom(venue) : undefined
 }
@@ -668,9 +686,10 @@ export function getRoomAvailability(
   rawRoomName: unknown,
   rawDate: unknown,
   rawEventType?: unknown,
+  venues: VenueSearchResult[] = venueSearchResults,
 ): RoomAvailabilityResult {
-  const venue = findVenueByRoomName(rawRoomName)
-  const roomName = venue?.name ?? resolveRoomName(rawRoomName)
+  const venue = findVenueByRoomName(rawRoomName, venues)
+  const roomName = venue?.name ?? resolveRoomName(rawRoomName, venues)
   const date = normalizeDateKey(rawDate)
   const eventType = typeof rawEventType === 'string' ? rawEventType.trim() : ''
   const matchedEventType = eventType ? resolveEventTypeId(eventType) ?? '' : ''

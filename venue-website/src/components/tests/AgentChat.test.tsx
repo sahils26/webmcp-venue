@@ -156,11 +156,11 @@ describe('AgentChat', () => {
     )
     const fetchMock = vi.fn().mockResolvedValueOnce(
       createChatResponse({
-        response: 'The Grand Hall is available on 2026-06-15.',
+        response: 'The Grand Hall is available on 2026-06-22.',
         tool_calls: [
           {
             name: 'check_availability',
-            arguments: { roomName: 'The Grand Hall', date: '2026-06-15' },
+            arguments: { roomName: 'The Grand Hall', date: '2026-06-22' },
           },
         ],
       }),
@@ -171,11 +171,11 @@ describe('AgentChat', () => {
     await sendMessage('Is The Grand Hall free on June 15?')
 
     expect(
-      await screen.findByText('The Grand Hall is available on 2026-06-15.'),
+      await screen.findByText('The Grand Hall is available on 2026-06-22.'),
     ).toBeInTheDocument()
     expect(toolHandler).toHaveBeenCalledWith({
       roomName: 'The Grand Hall',
-      date: '2026-06-15',
+      date: '2026-06-22',
     })
     expect(fetchMock).toHaveBeenCalledTimes(1)
 

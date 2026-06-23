@@ -1,4 +1,6 @@
 """Backend API contract tests for local demo and frontend integration."""
+from datetime import date, timedelta
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
@@ -7,9 +9,13 @@ from app.models.booking import Booking
 from app.models.quote import QuoteRequest
 from app.seed import seed
 
+FUTURE_DATE = (date.today() + timedelta(days=30)).isoformat()
+SECOND_FUTURE_DATE = (date.today() + timedelta(days=31)).isoformat()
+PAST_DATE = (date.today() - timedelta(days=1)).isoformat()
+
 BOOKING_PAYLOAD = {
     "venue_id": "grand-hall",
-    "date": "2026-07-02",
+    "date": FUTURE_DATE,
     "contact_name": "Demo User",
     "contact_email": "demo@example.com",
     "event_type": "conference",
@@ -32,6 +38,9 @@ def test_health_and_catalog_contract(client: TestClient) -> None:
         "grand-hall",
         "garden-pavilion",
     }
+    grand_hall = next(venue for venue in catalog["venues"] if venue["id"] == "grand-hall")
+    assert "conference" in grand_hall["event_types"]
+    assert grand_hall["blocked_dates"] == []
 
 
 def test_https_localhost_is_allowed_by_cors(client: TestClient) -> None:
@@ -68,7 +77,7 @@ def test_booking_updates_availability_and_prevents_duplicate(client: TestClient)
     assert after.json()["available"] is False
 
     venue = client.get("/api/venues/grand-hall").json()
-    assert BOOKING_PAYLOAD["date"] not in venue["all_available_dates"]
+    assert BOOKING_PAYLOAD["date"] in venue["blocked_dates"]
 
 
 def test_booking_validates_capacity_and_input(client: TestClient) -> None:
@@ -87,7 +96,7 @@ def test_booking_validates_capacity_and_input(client: TestClient) -> None:
 
     past = client.post(
         "/api/bookings",
-        json={**BOOKING_PAYLOAD, "date": "2026-06-15"},
+        json={**BOOKING_PAYLOAD, "date": PAST_DATE},
     )
     assert past.status_code == 422
 
@@ -97,17 +106,18 @@ def test_quote_requires_known_available_venue(client: TestClient) -> None:
         "/api/quotes",
         json={
             "room_name": "Unknown Venue",
-            "date": "2026-07-02",
+            "date": FUTURE_DATE,
             "email": "demo@example.com",
         },
     )
     assert unknown.status_code == 404
 
+    assert client.post("/api/bookings", json=BOOKING_PAYLOAD).status_code == 201
     unavailable = client.post(
         "/api/quotes",
         json={
             "room_name": "The Grand Hall",
-            "date": "2026-12-31",
+            "date": FUTURE_DATE,
             "email": "demo@example.com",
         },
     )
@@ -117,7 +127,7 @@ def test_quote_requires_known_available_venue(client: TestClient) -> None:
         "/api/quotes",
         json={
             "room_name": "The Grand Hall",
-            "date": "2026-07-02",
+            "date": SECOND_FUTURE_DATE,
             "email": "demo@example.com",
             "guest_count": 151,
         },
@@ -128,7 +138,7 @@ def test_quote_requires_known_available_venue(client: TestClient) -> None:
         "/api/quotes",
         json={
             "room_name": "The Grand Hall",
-            "date": "2026-06-15",
+            "date": PAST_DATE,
             "email": "demo@example.com",
         },
     )
@@ -140,13 +150,29 @@ def test_quote_persists_and_listing_requires_admin_key(client: TestClient) -> No
         "/api/quotes",
         json={
             "room_name": "The Grand Hall",
-            "date": "2026-07-02",
+            "date": FUTURE_DATE,
             "email": "quote@example.com",
             "guest_count": 100,
         },
     )
     assert quote.status_code == 201
     assert quote.json()["venue_id"] == "grand-hall"
+
+    availability = client.get(
+        "/api/venues/grand-hall/availability",
+        params={"date": FUTURE_DATE},
+    )
+    assert availability.json()["available"] is False
+
+    duplicate = client.post(
+        "/api/quotes",
+        json={
+            "room_name": "The Grand Hall",
+            "date": FUTURE_DATE,
+            "email": "another@example.com",
+        },
+    )
+    assert duplicate.status_code == 409
 
     assert client.get("/api/quotes").status_code == 401
     listed = client.get(
@@ -160,7 +186,7 @@ def test_quote_persists_and_listing_requires_admin_key(client: TestClient) -> No
 def test_reseeding_preserves_transactions(client: TestClient) -> None:
     quote_payload = {
         "room_name": "The Grand Hall",
-        "date": BOOKING_PAYLOAD["date"],
+        "date": SECOND_FUTURE_DATE,
         "email": "quote@example.com",
     }
     assert client.post("/api/quotes", json=quote_payload).status_code == 201

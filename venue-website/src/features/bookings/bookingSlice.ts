@@ -1,15 +1,14 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import {
-  readStoredVenueBookings,
-  type VenueBooking,
-} from './bookingStorage'
+import type { VenueBooking } from './bookingStorage'
 
 export interface BookingState {
   bookings: VenueBooking[]
 }
 
 const initialState: BookingState = {
-  bookings: readStoredVenueBookings(),
+  // Backend catalog data is authoritative across reloads. This slice only
+  // provides an immediate in-session update after a successful quote hold.
+  bookings: [],
 }
 
 export function getBookedDateKeysForVenue(

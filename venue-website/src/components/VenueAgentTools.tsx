@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useAppDispatch, useAppSelector } from '../app/hooks'
+import { useAppDispatch } from '../app/hooks'
 import {
   availableVenuesSchema,
   checkAvailabilitySchema,
@@ -10,17 +10,17 @@ import {
   roomDetailsSchema,
   venueSearchSchema,
 } from '../data/agentToolSchemas'
-import { venueSearchResults } from '../data/venueSearchResults'
+import { getVenueSearchResultsFromCatalog } from '../data/venueSearchResults'
 import { agentQueryRecorded } from '../features/agent/agentActivitySlice'
-import {
-  isVenueDateBooked,
-  selectVenueBookings,
-} from '../features/bookings/bookingSlice'
 import {
   quoteDraftPrepared,
   quoteFormHandoffRequested,
   quoteStatusSet,
 } from '../features/quote/quoteSlice'
+import {
+  useLazyCheckVenueAvailabilityQuery,
+  useLazyGetVenueCatalogQuery,
+} from '../features/venues/venueApi'
 import { useAgentTool } from '../hooks/useAgentTool'
 import {
   getRoomAvailability,
@@ -28,11 +28,18 @@ import {
   listAvailableVenues,
   recommendVenuesByEventType,
   resolveRoomName,
-  roomNames,
   searchVenues,
 } from '../services/venueAvailability'
 import type { AgentToolParams } from '../types/agentTool'
-import type { RoomAvailabilityResult } from '../types/venue'
+import type {
+  RoomAvailabilityResult,
+  VenueAvailabilityResponse,
+  VenueSearchResult,
+} from '../types/venue'
+
+interface VenueAgentToolsProps {
+  venues: VenueSearchResult[]
+}
 
 function getStringParam(params: AgentToolParams | unknown, key: string): string {
   if (typeof params !== 'object' || params === null || Array.isArray(params)) {
@@ -43,37 +50,89 @@ function getStringParam(params: AgentToolParams | unknown, key: string): string 
   return typeof value === 'string' ? value : ''
 }
 
-function applyFrontendBookingBlock(
-  availability: RoomAvailabilityResult,
-  bookings: ReturnType<typeof selectVenueBookings>,
+function mergeBackendAvailability(
+  local: RoomAvailabilityResult,
+  backend: VenueAvailabilityResponse,
 ): RoomAvailabilityResult {
-  const room = getRoomByName(availability.roomName)
-
-  if (
-    !room ||
-    !availability.success ||
-    !availability.available ||
-    !availability.date ||
-    !isVenueDateBooked(bookings, room.id, availability.date)
-  ) {
-    return availability
+  if (backend.available) {
+    return local
   }
 
   return {
-    ...availability,
+    ...local,
     available: false,
-    message: `${availability.roomName} is already booked on ${availability.date}.`,
+    message: backend.message.replace(backend.venue_id, local.roomName),
   }
 }
 
-export default function VenueAgentTools() {
+export default function VenueAgentTools({ venues }: VenueAgentToolsProps) {
   const dispatch = useAppDispatch()
-  const bookings = useAppSelector(selectVenueBookings)
   const location = useLocation()
   const lastMatchedEventTypeRef = useRef('')
-  const currentVenue = venueSearchResults.find(
-    (venue) => location.pathname === `/venues/${venue.id}`,
-  )
+  const [loadVenueCatalog] = useLazyGetVenueCatalogQuery()
+  const [checkBackendAvailability] = useLazyCheckVenueAvailabilityQuery()
+
+  const getLiveVenues = async (): Promise<VenueSearchResult[]> => {
+    try {
+      const catalog = await loadVenueCatalog(undefined, false).unwrap()
+      return getVenueSearchResultsFromCatalog(catalog)
+    } catch {
+      return venues
+    }
+  }
+
+  const checkLiveAvailability = async (
+    roomName: string,
+    date: string,
+    eventType: string,
+    liveVenues: VenueSearchResult[],
+  ): Promise<RoomAvailabilityResult> => {
+    const local = getRoomAvailability(roomName, date, eventType, liveVenues)
+    if (!local.success || !local.available) {
+      return local
+    }
+
+    const room = getRoomByName(local.roomName, liveVenues)
+    if (!room) {
+      return local
+    }
+
+    try {
+      const backend = await checkBackendAvailability({
+        venueId: room.id,
+        date: local.date,
+      }).unwrap()
+      return mergeBackendAvailability(local, backend)
+    } catch {
+      return {
+        ...local,
+        success: false,
+        available: false,
+        message: 'Live venue availability is temporarily unavailable.',
+      }
+    }
+  }
+
+  const filterVenuesByDate = async (
+    liveVenues: VenueSearchResult[],
+    date: string,
+  ): Promise<VenueSearchResult[]> => {
+    if (!date) {
+      return liveVenues
+    }
+
+    const checks = await Promise.all(
+      liveVenues.map(async (venue) => {
+        try {
+          const result = await checkBackendAvailability({ venueId: venue.id, date }).unwrap()
+          return result.available ? venue : null
+        } catch {
+          return null
+        }
+      }),
+    )
+    return checks.filter((venue): venue is VenueSearchResult => venue !== null)
+  }
 
   useAgentTool(
     {
@@ -82,25 +141,17 @@ export default function VenueAgentTools() {
         'Lists venue options for broad user questions like "which venues are available?" If a future date is provided, returns venues not blocked on that date; otherwise returns all venues.',
       schema: availableVenuesSchema,
     },
-    (params) => {
+    async (params) => {
       const date = getStringParam(params, 'date')
       dispatch(agentQueryRecorded(date ? `Listing available venues on ${date}` : 'Listing venues'))
-      const result = listAvailableVenues(date)
-
-      if (!result.success || !result.date) {
-        return result
+      const liveVenues = await getLiveVenues()
+      const initial = listAvailableVenues(date, liveVenues)
+      if (!initial.success || !initial.date) {
+        return initial
       }
 
-      const venues = result.venues.filter((venue) => {
-        const room = getRoomByName(venue.name)
-        return room ? !isVenueDateBooked(bookings, room.id, result.date) : true
-      })
-
-      return {
-        ...result,
-        venues,
-        message: `${venues.length} venue${venues.length === 1 ? ' is' : 's are'} available on ${result.date}.`,
-      }
+      const availableVenues = await filterVenuesByDate(liveVenues, initial.date)
+      return listAvailableVenues(initial.date, availableVenues)
     },
   )
 
@@ -111,10 +162,18 @@ export default function VenueAgentTools() {
         'Searches venues by guest count, capacity range, date, facilities, amenities, optional event type, or free-text planning details. Use this for requirements-based searches even when the user has no event type in mind. Returns exact matches when possible and close suggestions when no venue matches every detail.',
       schema: venueSearchSchema,
     },
-    (params) => {
-      const result = searchVenues(params)
-      const matchedEventType = getStringParam(result, 'matchedEventType')
-      lastMatchedEventTypeRef.current = matchedEventType
+    async (params) => {
+      let liveVenues = await getLiveVenues()
+      const dateResult = listAvailableVenues(getStringParam(params, 'date'), liveVenues)
+      if (!dateResult.success) {
+        return searchVenues(params, liveVenues)
+      }
+      if (dateResult.date) {
+        liveVenues = await filterVenuesByDate(liveVenues, dateResult.date)
+      }
+
+      const result = searchVenues(params, liveVenues)
+      lastMatchedEventTypeRef.current = getStringParam(result, 'matchedEventType')
       dispatch(agentQueryRecorded('Searching venues by planning requirements'))
       return result
     },
@@ -127,11 +186,10 @@ export default function VenueAgentTools() {
         'Recommends venues suited to a specific event type (e.g. birthday, wedding, conference, workshop, gala, dinner). Use this only when the user states the kind of event they are planning. Returns venues tagged for that event type, or the list of supported event types when the input is unrecognised.',
       schema: recommendByEventTypeSchema,
     },
-    (params) => {
+    async (params) => {
       const eventType = getStringParam(params, 'eventType')
-      const result = recommendVenuesByEventType(eventType)
-      const matchedEventType = getStringParam(result, 'matchedEventType')
-      lastMatchedEventTypeRef.current = matchedEventType
+      const result = recommendVenuesByEventType(eventType, await getLiveVenues())
+      lastMatchedEventTypeRef.current = getStringParam(result, 'matchedEventType')
       dispatch(
         agentQueryRecorded(
           eventType ? `Recommending venues for ${eventType}` : 'Recommending venues by event type',
@@ -148,26 +206,28 @@ export default function VenueAgentTools() {
         'Retrieves the capacity, pricing, equipment details, and current booking note for a specific room at this event venue.',
       schema: roomDetailsSchema,
     },
-    (params) => {
-      const roomName = resolveRoomName(getStringParam(params, 'roomName'))
-      const roomInfo = getRoomByName(roomName)
+    async (params) => {
+      const liveVenues = await getLiveVenues()
+      const roomName = resolveRoomName(getStringParam(params, 'roomName'), liveVenues)
+      const roomInfo = getRoomByName(roomName, liveVenues)
       dispatch(agentQueryRecorded(roomInfo?.name ?? roomName))
       if (roomInfo) {
+        const venue = liveVenues.find((candidate) => candidate.id === roomInfo.id)
         return {
           success: true,
           data: {
             ...roomInfo,
             availableDates: [],
-            blockedDates: bookings
-              .filter((booking) => booking.venueId === roomInfo.id)
-              .map((booking) => booking.date),
+            blockedDates: venue?.blocked_dates ?? [],
             availabilityNote: 'All future dates are available unless already booked.',
           },
         }
       }
       return {
         success: false,
-        message: `Room '${roomName}' not found. Available rooms are: ${roomNames.join(', ')}`,
+        message: `Room '${roomName}' not found. Available rooms are: ${liveVenues
+          .map((venue) => venue.name)
+          .join(', ')}`,
       }
     },
   )
@@ -179,15 +239,16 @@ export default function VenueAgentTools() {
         'Prefills the visible quote request form only when the requested room is available on the requested date and, when an event type was mentioned, suitable for that event type. A successful call minimizes the chat and scrolls the user to the filled form. The user must still click submit.',
       schema: quoteRequestSchema,
     },
-    (params) => {
+    async (params) => {
+      const liveVenues = await getLiveVenues()
+      const currentVenue = liveVenues.find(
+        (venue) => location.pathname === `/venues/${venue.id}`,
+      )
       const roomName = getStringParam(params, 'roomName') || currentVenue?.name || ''
       const date = getStringParam(params, 'date')
       const email = getStringParam(params, 'email')
       const eventType = getStringParam(params, 'eventType') || lastMatchedEventTypeRef.current
-      const availability = applyFrontendBookingBlock(
-        getRoomAvailability(roomName, date, eventType),
-        bookings,
-      )
+      const availability = await checkLiveAvailability(roomName, date, eventType, liveVenues)
       if (availability.matchedEventType) {
         lastMatchedEventTypeRef.current = availability.matchedEventType
       }
@@ -207,6 +268,7 @@ export default function VenueAgentTools() {
           message: `${availability.message} Quote request form was not prepared.`,
         }
       }
+
       dispatch(
         quoteDraftPrepared({
           roomName: availability.roomName,
@@ -233,14 +295,15 @@ export default function VenueAgentTools() {
         'Checks if a specific room is available on a given date and, when an event type was mentioned, whether that room is suitable for the event type. If no event type was mentioned, checks date availability only.',
       schema: checkAvailabilitySchema,
     },
-    (params) => {
+    async (params) => {
+      const liveVenues = await getLiveVenues()
+      const currentVenue = liveVenues.find(
+        (venue) => location.pathname === `/venues/${venue.id}`,
+      )
       const roomName = getStringParam(params, 'roomName') || currentVenue?.name || ''
       const date = getStringParam(params, 'date')
       const eventType = getStringParam(params, 'eventType') || lastMatchedEventTypeRef.current
-      const availability = applyFrontendBookingBlock(
-        getRoomAvailability(roomName, date, eventType),
-        bookings,
-      )
+      const availability = await checkLiveAvailability(roomName, date, eventType, liveVenues)
       if (availability.matchedEventType) {
         lastMatchedEventTypeRef.current = availability.matchedEventType
       }
@@ -261,9 +324,10 @@ export default function VenueAgentTools() {
       description: 'Returns the price per day for a specific room at this event venue.',
       schema: pricingSchema,
     },
-    (params) => {
-      const roomName = resolveRoomName(getStringParam(params, 'roomName'))
-      const roomInfo = getRoomByName(roomName)
+    async (params) => {
+      const liveVenues = await getLiveVenues()
+      const roomName = resolveRoomName(getStringParam(params, 'roomName'), liveVenues)
+      const roomInfo = getRoomByName(roomName, liveVenues)
       dispatch(agentQueryRecorded(roomInfo?.name ?? roomName))
       if (roomInfo) {
         return {
@@ -277,7 +341,9 @@ export default function VenueAgentTools() {
       }
       return {
         success: false,
-        message: `Room '${roomName}' not found. Available rooms are: ${roomNames.join(', ')}`,
+        message: `Room '${roomName}' not found. Available rooms are: ${liveVenues
+          .map((venue) => venue.name)
+          .join(', ')}`,
       }
     },
   )

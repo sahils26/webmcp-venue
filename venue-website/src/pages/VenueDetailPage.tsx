@@ -6,18 +6,19 @@ import SiteFooter from '../components/landing/SiteFooter'
 import SiteHeader from '../components/landing/SiteHeader'
 import { getEventTypeLabel } from '../data/eventTypes'
 import { venueSearchResults } from '../data/venueSearchResults'
+import { useCreateQuoteMutation } from '../features/venues/venueApi'
 import {
   getBookedDateKeysForVenue,
   selectVenueBookings,
   venueQuoteRequested,
 } from '../features/bookings/bookingSlice'
-import { appendStoredVenueBooking } from '../features/bookings/bookingStorage'
 import {
   selectQuoteDraft,
   selectQuoteHandoffRequestKey,
 } from '../features/quote/quoteSlice'
 import { QUOTE_SUCCESS_RESET_DELAY_MS } from '../features/quote/quoteTiming'
 import { getRoomAvailability, resolveRoomName } from '../services/venueAvailability'
+import { getApiErrorMessage } from '../services/api/errorMessage'
 import type { QuoteDraft, VenueSearchResult } from '../types/venue'
 import { formatVenueCurrency } from '../utils/currency'
 import { getNextOpenDateKey, getTodayDateKey, normalizeDateKey } from '../utils/dateKeys'
@@ -44,8 +45,14 @@ function VenueBookingHighlights({ venue }: VenueBookingHighlightsProps) {
   const bookings = useAppSelector(selectVenueBookings)
   const todayDateKey = useMemo(() => getTodayDateKey(), [])
   const bookedDates = useMemo(
-    () => getBookedDateKeysForVenue(bookings, venue.id),
-    [bookings, venue.id],
+    () =>
+      Array.from(
+        new Set([
+          ...venue.blocked_dates,
+          ...getBookedDateKeysForVenue(bookings, venue.id),
+        ]),
+      ),
+    [bookings, venue.blocked_dates, venue.id],
   )
   const nextBookableDate = getNextOpenDateKey(bookedDates, todayDateKey)
   const amenityPreview = venue.detailed_amenities.slice(0, 3)
@@ -106,17 +113,25 @@ function VenueBookingHighlights({ venue }: VenueBookingHighlightsProps) {
 
 interface VenueQuotePanelProps {
   venue: VenueSearchResult
+  venues: VenueSearchResult[]
 }
 
-function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
+function VenueQuotePanel({ venue, venues }: VenueQuotePanelProps) {
   const dispatch = useAppDispatch()
+  const [createQuote] = useCreateQuoteMutation()
   const todayDateKey = useMemo(() => getTodayDateKey(), [])
   const preparedQuoteDraft = useAppSelector(selectQuoteDraft)
   const quoteHandoffRequestKey = useAppSelector(selectQuoteHandoffRequestKey)
   const bookings = useAppSelector(selectVenueBookings)
   const bookedDates = useMemo(
-    () => getBookedDateKeysForVenue(bookings, venue.id),
-    [bookings, venue.id],
+    () =>
+      Array.from(
+        new Set([
+          ...venue.blocked_dates,
+          ...getBookedDateKeysForVenue(bookings, venue.id),
+        ]),
+      ),
+    [bookings, venue.blocked_dates, venue.id],
   )
   const handledHandoffRequestKeyRef = useRef(0)
   const quoteResetTimerRef = useRef<number | null>(null)
@@ -141,7 +156,7 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
     if (
       !quoteHandoffRequestKey ||
       handledHandoffRequestKeyRef.current === quoteHandoffRequestKey ||
-      resolveRoomName(preparedQuoteDraft.roomName) !== venue.name
+      resolveRoomName(preparedQuoteDraft.roomName, venues) !== venue.name
     ) {
       return
     }
@@ -161,7 +176,7 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
       .getElementById('venue-detail-quote')
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     document.getElementById('detail-quote-submit')?.focus({ preventScroll: true })
-  }, [preparedQuoteDraft, quoteHandoffRequestKey, venue.name])
+  }, [preparedQuoteDraft, quoteHandoffRequestKey, venue.name, venues])
 
   const cancelScheduledQuoteReset = () => {
     if (quoteResetTimerRef.current !== null) {
@@ -190,7 +205,7 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
     setQuoteStatus(null)
   }
 
-  const handleQuoteSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleQuoteSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const email = quoteDraft.email.trim()
@@ -216,23 +231,35 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
       return
     }
 
-    const availability = getRoomAvailability(venue.name, date)
+    const availability = getRoomAvailability(venue.name, date, undefined, venues)
     if (!availability.success || !availability.available) {
       setQuoteStatus(`${availability.message} Quote request was not sent.`)
       return
     }
 
-    const quoteRequest = {
-      id: `${venue.id}-${date}-${Date.now()}`,
-      venueId: venue.id,
-      venueName: venue.name,
-      date,
-      email,
-      createdAt: new Date().toISOString(),
-    }
+    try {
+      const quote = await createQuote({
+        room_name: venue.name,
+        date,
+        email,
+      }).unwrap()
 
-    appendStoredVenueBooking(quoteRequest)
-    dispatch(venueQuoteRequested(quoteRequest))
+      dispatch(
+        venueQuoteRequested({
+          id: String(quote.id),
+          venueId: quote.venue_id,
+          venueName: venue.name,
+          date: quote.date,
+          email: quote.email,
+          createdAt: quote.created_at,
+        }),
+      )
+    } catch (error) {
+      setQuoteStatus(
+        `${getApiErrorMessage(error, 'Quote request could not be sent.')} Quote request was not sent.`,
+      )
+      return
+    }
     setQuoteDraft((currentDraft) => ({ ...currentDraft, email }))
     setQuoteStatus(`Quote requested for ${venue.name} on ${date} by ${email}. The date is now held.`)
     cancelScheduledQuoteReset()
@@ -280,9 +307,15 @@ function VenueQuotePanel({ venue }: VenueQuotePanelProps) {
   )
 }
 
-export default function VenueDetailPage() {
+interface VenueDetailPageProps {
+  venues?: VenueSearchResult[]
+}
+
+export default function VenueDetailPage({
+  venues = venueSearchResults,
+}: VenueDetailPageProps) {
   const { venueId } = useParams()
-  const venue = venueSearchResults.find((candidate) => candidate.id === venueId)
+  const venue = venues.find((candidate) => candidate.id === venueId)
 
   if (!venue) {
     return (
@@ -404,7 +437,7 @@ export default function VenueDetailPage() {
         <section className="venue-detail__section venue-detail__section--split">
           <VenueBookingHighlights venue={venue} />
 
-          <VenueQuotePanel key={venue.id} venue={venue} />
+          <VenueQuotePanel key={venue.id} venue={venue} venues={venues} />
         </section>
       </main>
       <SiteFooter />

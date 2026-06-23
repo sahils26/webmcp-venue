@@ -2,6 +2,7 @@
 from secrets import compare_digest
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from ..config import Settings, get_settings
@@ -51,7 +52,14 @@ def create_quote(
         message=payload.message,
     )
     session.add(quote)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"{venue.id} is already held on {payload.date.isoformat()}.",
+        )
     session.refresh(quote)
     return quote
 
