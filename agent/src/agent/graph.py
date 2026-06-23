@@ -40,11 +40,8 @@ def map_webmcp_to_lc_tools(webmcp_client):
         # We need a factory to capture the name for each iteration correctly
         def create_tool_func(tool_name):
             def tool_func(**kwargs):
-                print(f"[TOOL CALLED] {tool_name} with {kwargs}")
                 clean_kwargs = {k: v for k, v in kwargs.items() if v is not None}
-                result = webmcp_client.call_tool(tool_name, clean_kwargs)
-                print(f"[TOOL RESULT] {str(result)[:500]}")
-                return result
+                return webmcp_client.call_tool(tool_name, clean_kwargs)
             return tool_func
             
         tool = StructuredTool.from_function(
@@ -56,6 +53,9 @@ def map_webmcp_to_lc_tools(webmcp_client):
         tools.append(tool)
     return tools
 
+from datetime import date as _date
+
+
 def build_agent(webmcp_client, api_key):
     # mistral-small is struggling with tool reasoning and getting stuck in loops.
     # upgrading to mistral-large-latest for much better tool performance
@@ -66,7 +66,10 @@ def build_agent(webmcp_client, api_key):
     )
     llm = ChatMistralAI(model="mistral-large-latest", mistral_api_key=api_key, rate_limiter=rate_limiter)
     tools = map_webmcp_to_lc_tools(webmcp_client)
-    system_prompt = """You are a venue planning assistant for spaces360.
+    today = _date.today().isoformat()
+    system_prompt = f"""Today's date is {today}. When a user mentions a date without a year, assume it is in {today[:4]} unless it has already passed, in which case assume the next year.
+
+You are a venue planning assistant for spaces360.
 
 CRITICAL: You have ZERO built-in knowledge of any venues, rooms, prices, or availability. Every answer about venues MUST come from a tool call. If you answer without calling a tool first, you will invent fake venues and wrong data.
 

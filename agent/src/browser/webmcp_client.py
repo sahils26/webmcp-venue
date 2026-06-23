@@ -117,9 +117,7 @@ class WebMCPClient:
             if isinstance(result, dict) and 'venues' in result:
                 for venue in result.get('venues', []):
                     venue.pop('availableDates', None)
-            result_json = json.dumps(result)
-            print(f"[TOOL RESULT] {result_json[:500]}")
-            return result_json
+            return json.dumps(result)
         except Exception as e:
             return f"Error executing tool {name}: {str(e)}"
 

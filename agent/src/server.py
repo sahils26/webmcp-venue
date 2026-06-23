@@ -72,8 +72,6 @@ def get_agent():
         webmcp_client = WebMCPClient(headless=True)
         webmcp_client.start()
 
-        tools = webmcp_client.get_tools()
-        print(f"[DIAGNOSTIC] Discovered {len(tools)} WebMCP tools: {[t['name'] for t in tools]}")
         logger.info("Building Mistral agent...")
         graph_agent = build_agent(webmcp_client, api_key)
         logger.info("Agent initialized successfully")
