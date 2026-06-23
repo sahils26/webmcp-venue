@@ -14,7 +14,7 @@ from sqlmodel import Session, delete, select
 from .config import BASE_DIR
 from .database import create_db_and_tables, engine
 from .models.amenity import Amenity, AmenityTranslation, VenueAmenity
-from .models.booking import Booking
+from .models.booking import Booking, BookingStatus
 from .models.event_type import EventType, EventTypeTranslation, VenueEventType
 from .models.quote import QuoteRequest
 from .models.venue import Venue, VenueAvailableDate, VenueImage, VenueTranslation
@@ -60,6 +60,41 @@ def _get_removable_stale_venues(
                 f"Cannot remove venue '{venue.id}' because transactions reference it."
             )
     return stale
+
+
+DEMO_BOOKINGS = [
+    {"venue_id": "grand-hall",             "date": "2026-07-10", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "conference", "guest_count": 200},
+    {"venue_id": "grand-hall",             "date": "2026-07-18", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "gala",       "guest_count": 350},
+    {"venue_id": "skyline-loft",           "date": "2026-07-05", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "birthday",   "guest_count": 60},
+    {"venue_id": "skyline-loft",           "date": "2026-07-22", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "workshop",   "guest_count": 40},
+    {"venue_id": "atelier-courtyard",      "date": "2026-07-01", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "wedding",    "guest_count": 80},
+    {"venue_id": "atelier-courtyard",      "date": "2026-07-14", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "dinner",     "guest_count": 50},
+    {"venue_id": "river-conference-suite", "date": "2026-07-08", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "conference", "guest_count": 30},
+    {"venue_id": "river-conference-suite", "date": "2026-07-25", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "workshop",   "guest_count": 25},
+    {"venue_id": "garden-pavilion",        "date": "2026-07-12", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "party",      "guest_count": 90},
+    {"venue_id": "garden-pavilion",        "date": "2026-07-20", "contact_name": "Demo Guest", "contact_email": "demo@spaces360.com", "event_type": "wedding",    "guest_count": 120},
+]
+
+
+def _seed_demo_bookings(session: Session) -> None:
+    for b in DEMO_BOOKINGS:
+        existing = session.exec(
+            select(Booking).where(
+                Booking.venue_id == b["venue_id"],
+                Booking.date == date.fromisoformat(b["date"]),
+                Booking.status == BookingStatus.confirmed,
+            )
+        ).first()
+        if existing is None:
+            session.add(Booking(
+                venue_id=b["venue_id"],
+                date=date.fromisoformat(b["date"]),
+                status=BookingStatus.confirmed,
+                contact_name=b["contact_name"],
+                contact_email=b["contact_email"],
+                event_type=b["event_type"],
+                guest_count=b["guest_count"],
+            ))
 
 
 def seed(path: Path = CATALOG_PATH) -> int:
@@ -172,6 +207,7 @@ def seed(path: Path = CATALOG_PATH) -> int:
                         )
                     )
 
+        _seed_demo_bookings(session)
         session.commit()
     return len(venues)
 
