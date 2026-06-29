@@ -139,6 +139,7 @@ function VenueQuotePanel({ venue, venues }: VenueQuotePanelProps) {
     roomName: venue.name,
     date: '',
     email: '',
+    specialRequirements: '',
   })
   const [quoteStatus, setQuoteStatus] = useState<string | null>(null)
   const nextBookableDate = getNextOpenDateKey(bookedDates, todayDateKey)
@@ -170,6 +171,7 @@ function VenueQuotePanel({ venue, venues }: VenueQuotePanelProps) {
       roomName: venue.name,
       date: preparedQuoteDraft.date,
       email: preparedQuoteDraft.email,
+      specialRequirements: preparedQuoteDraft.specialRequirements,
     })
     setQuoteStatus(null)
     document
@@ -193,7 +195,7 @@ function VenueQuotePanel({ venue, venues }: VenueQuotePanelProps) {
       return
     }
 
-    if (name === 'date' || name === 'email') {
+    if (name === 'date' || name === 'email' || name === 'specialRequirements') {
       setQuoteDraft((currentDraft) => ({ ...currentDraft, [name]: value }))
       setQuoteStatus(null)
     }
@@ -268,6 +270,7 @@ function VenueQuotePanel({ venue, venues }: VenueQuotePanelProps) {
         roomName: venue.name,
         date: '',
         email: '',
+        specialRequirements: '',
       })
       setQuoteStatus(null)
       quoteResetTimerRef.current = null
