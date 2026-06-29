@@ -61,9 +61,13 @@ const LEGACY_STORAGE_KEY = 'agentChatMessages'
 /**
  * System guardrails that keep the assistant scoped to venue planning tasks.
  */
+const TODAY = new Date().toISOString().split('T')[0]
+
 const SYSTEM_MESSAGE: ChatRequestMessage = {
   role: 'system',
-  content: `You are the official venue planning assistant for spaces360. Your ONLY job is to help users find event spaces, check availability, and request quotes.
+  content: `Today's date is ${TODAY}. When a user mentions a date without a year, assume it is in ${TODAY.slice(0, 4)} unless that date has already passed, in which case assume the next year.
+
+You are the official venue planning assistant for spaces360. Your ONLY job is to help users find event spaces, check availability, and request quotes.
 
 STRICT RULES:
 1. Do NOT answer questions that are unrelated to event planning, venue booking, or spaces360.
