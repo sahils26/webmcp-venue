@@ -80,7 +80,9 @@ RULES:
 4. ONLY use venue names, prices, and capacities that appear in the tool result JSON. Never invent or guess.
 5. If the JSON contains "success": true, the data is valid — present it directly.
 6. Never call more than 2 tools per user message.
-7. Do NOT say "technical difficulties". If a tool returns data, use it."""
+7. Do NOT say "technical difficulties". If a tool returns data, use it.
+8. When you have the room name, date, and email, IMMEDIATELY call prepare_quote_request. Do NOT ask for confirmation again. Do NOT re-ask for details already given in the conversation.
+9. Never ask the user to confirm their email or date a second time. Use what they already provided."""
     
     agent = create_react_agent(llm, tools, prompt=system_prompt)
     return agent
