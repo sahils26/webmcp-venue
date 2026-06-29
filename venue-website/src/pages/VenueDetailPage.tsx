@@ -139,7 +139,6 @@ function VenueQuotePanel({ venue, venues }: VenueQuotePanelProps) {
     roomName: venue.name,
     date: '',
     email: '',
-    specialRequirements: '',
   })
   const [quoteStatus, setQuoteStatus] = useState<string | null>(null)
   const nextBookableDate = getNextOpenDateKey(bookedDates, todayDateKey)
@@ -270,7 +269,6 @@ function VenueQuotePanel({ venue, venues }: VenueQuotePanelProps) {
         roomName: venue.name,
         date: '',
         email: '',
-        specialRequirements: '',
       })
       setQuoteStatus(null)
       quoteResetTimerRef.current = null

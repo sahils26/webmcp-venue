@@ -79,7 +79,7 @@ export interface QuoteDraft {
   email: string
 
   /** Optional special requirements or notes prefilled by the agent. */
-  specialRequirements: string
+  specialRequirements?: string
 }
 
 /**

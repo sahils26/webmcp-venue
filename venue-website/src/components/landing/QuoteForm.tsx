@@ -245,7 +245,7 @@ export default function QuoteForm({
           <textarea
             id={`${idPrefix}-special`}
             name="specialRequirements"
-            value={quoteDraft.specialRequirements}
+            value={quoteDraft.specialRequirements ?? ''}
             onChange={(e) =>
               onQuoteFieldChange(e as unknown as ChangeEvent<HTMLInputElement>)
             }

@@ -15,7 +15,6 @@ const initialDraft: QuoteDraft = {
   roomName: '',
   date: '',
   email: '',
-  specialRequirements: '',
 }
 
 const initialState: QuoteState = {
