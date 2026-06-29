@@ -248,10 +248,21 @@ export default function VenueAgentTools({ venues }: VenueAgentToolsProps) {
       const date = getStringParam(params, 'date')
       const email = getStringParam(params, 'email')
       const eventType = getStringParam(params, 'eventType') || lastMatchedEventTypeRef.current
-      const availability = await checkLiveAvailability(roomName, date, eventType, liveVenues)
-      if (availability.matchedEventType) {
-        lastMatchedEventTypeRef.current = availability.matchedEventType
+      const specialRequirements = getStringParam(params, 'specialRequirements')
+
+      // Check date availability only — event type mismatch is a soft warning, not a blocker.
+      // The user has already been informed and is choosing to proceed.
+      const dateAvailability = await checkLiveAvailability(roomName, date, '', liveVenues)
+      const eventTypeAvailability = eventType
+        ? await checkLiveAvailability(roomName, date, eventType, liveVenues)
+        : dateAvailability
+
+      if (eventTypeAvailability.matchedEventType) {
+        lastMatchedEventTypeRef.current = eventTypeAvailability.matchedEventType
       }
+
+      const availability = dateAvailability
+
       dispatch(
         agentQueryRecorded(
           `Preparing quote request for ${availability.roomName || roomName} on ${
@@ -259,6 +270,8 @@ export default function VenueAgentTools({ venues }: VenueAgentToolsProps) {
           }`,
         ),
       )
+
+      // Only block if the date itself is unavailable — not for event type mismatch.
       if (!availability.success || !availability.available) {
         dispatch(quoteStatusSet(`${availability.message} Quote request form was not prepared.`))
         return {
@@ -269,11 +282,18 @@ export default function VenueAgentTools({ venues }: VenueAgentToolsProps) {
         }
       }
 
+      // Build special requirements note — include event type warning if venue isn't tagged for it.
+      const eventTypeNote =
+        eventType && eventTypeAvailability.available === false && eventTypeAvailability.message?.includes('not')
+          ? `Note: this venue is not specifically tagged for ${eventType} events. ${specialRequirements}`
+          : specialRequirements
+
       dispatch(
         quoteDraftPrepared({
           roomName: availability.roomName,
           date: availability.date,
           email,
+          specialRequirements: eventTypeNote.trim(),
         }),
       )
       dispatch(quoteStatusSet(null))
@@ -283,7 +303,7 @@ export default function VenueAgentTools({ venues }: VenueAgentToolsProps) {
         success: true,
         available: true,
         message:
-          'Quote request form prepared. The user must review it and click submit to send it.',
+          'Quote request form prepared with special requirements noted. The user must review it and click submit to send it.',
       }
     },
   )

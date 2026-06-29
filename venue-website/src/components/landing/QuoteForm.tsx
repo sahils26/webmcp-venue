@@ -240,6 +240,19 @@ export default function QuoteForm({
             required
           />
         </div>
+        <div className="quote-form__field">
+          <label htmlFor={`${idPrefix}-special`}>Special Requirements</label>
+          <textarea
+            id={`${idPrefix}-special`}
+            name="specialRequirements"
+            value={quoteDraft.specialRequirements}
+            onChange={(e) =>
+              onQuoteFieldChange(e as unknown as ChangeEvent<HTMLInputElement>)
+            }
+            placeholder="e.g. AR equipment, catering, accessibility needs, custom setup..."
+            rows={3}
+          />
+        </div>
         <button className="quote-form__submit" id={submitButtonId} type="submit">
           {submitButtonLabel}
         </button>

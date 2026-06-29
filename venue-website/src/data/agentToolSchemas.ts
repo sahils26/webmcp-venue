@@ -201,6 +201,11 @@ export const quoteRequestSchema: JsonSchema = {
       description:
         'Optional event type from the conversation, such as birthday, wedding, conference, or workshop. Omit this when the user has not mentioned one.',
     },
+    specialRequirements: {
+      type: 'string',
+      description:
+        'Optional special requirements or notes to prefill in the quote form. Use this to capture any specific needs the user mentioned, such as AV equipment, catering, accessibility, or custom setup requests.',
+    },
   },
   required: ['roomName', 'date', 'email'],
 }

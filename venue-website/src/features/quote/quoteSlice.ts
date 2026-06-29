@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { QuoteDraft } from '../../types/venue'
 
-const quoteDraftFields = ['roomName', 'date', 'email'] as const
+const quoteDraftFields = ['roomName', 'date', 'email', 'specialRequirements'] as const
 
 export type QuoteDraftField = (typeof quoteDraftFields)[number]
 
@@ -15,6 +15,7 @@ const initialDraft: QuoteDraft = {
   roomName: '',
   date: '',
   email: '',
+  specialRequirements: '',
 }
 
 const initialState: QuoteState = {

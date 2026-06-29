@@ -85,7 +85,9 @@ STRICT RULES:
 13. Do not invent an event type. If the user has no specific event type in mind, continue with capacity, date, amenity, facility, or general requirement filters.
 14. If the venue search tool says there is no exact match, explain that clearly and then summarize the suggested venues and why they are close.
 15. When checking availability or preparing a quote after the user has already mentioned an event type, preserve that event type. If no event type has been mentioned, check date availability only.
-16. When a user asks you to fill, prepare, or complete the quote form, collect the room name, event date, and email address. Once all three are known, use the quote request tool and remind the user that they must review the form and click submit.`,
+16. When a user asks you to fill, prepare, or complete the quote form, collect the room name, event date, and email address. Once all three are known, use the quote request tool and remind the user that they must review the form and click submit.
+17. If the user has mentioned any special needs, custom equipment, accessibility requirements, or notes (e.g. AR equipment, catering, seminar setup), include them in the specialRequirements field of the quote request tool so the form is prefilled with those details.
+18. If a venue is not specifically tagged for the user's event type but meets their capacity and other needs, you may still prepare a quote request for it. Include a note in specialRequirements explaining the event type and any special setup needed.`,
 }
 
 interface AgentChatProps {

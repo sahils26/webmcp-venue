@@ -77,6 +77,9 @@ export interface QuoteDraft {
 
   /** Contact email address for the quote request. */
   email: string
+
+  /** Optional special requirements or notes prefilled by the agent. */
+  specialRequirements: string
 }
 
 /**
